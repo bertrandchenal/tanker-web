@@ -1,0 +1,45 @@
+
+country:
+  title: Country
+  table: country
+  fields:
+    Country: name
+    Currency: currency.name
+    Reserve Up: reserve_up
+    Reserve Down: reserve_down
+    Cold Reserve: cold_reserve
+
+fuel:
+  title: Fuel
+  table: fuel
+  fields:
+    Fuel: name
+    CO2 rate: co2_rate
+
+fuelhub:
+  title: Fuel Hub
+  table: fuelhub
+  fields:
+    Fuel Hub: name
+    Country: country.name
+
+agent:
+  title: Agent
+  table: agent_plant
+  fields:
+    Plant: plant.name
+    Agent: agent.name
+    Agent Weight: agent_weight
+
+plant:
+  title: Plant
+  table: plant
+  fields:
+    Plant: name
+    Admin Region: admin_region.name
+    Zone: admin_region.zone.name
+    Country: admin_region.zone.country.name
+    Currency: admin_region.zone.country.currency.name
+    Type: type.name
+    Grid Type: grid_type.name
+    Fuel: main_fuel.name
