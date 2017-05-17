@@ -14,9 +14,25 @@ var init = function(e) {
         }
         var href = match.attr('href');
         load(href, mktable);
-    }, true)    
+    }, true)
 };
 
+
+var edit = function() {
+    var target = d3.event.target;
+    var old_active = d3.select('.active');
+    old_active.attr('class', '');
+    old_active.selectAll('span').attr('contenteditable', 'false');
+
+    var row = d3.select(target.tagName == 'SPAN'
+                        ? target.parentNode.parentNode
+                        : target.parentNode);
+    row.attr('class', 'active')
+    var td = row.selectAll('td')
+        .attr('contenteditable', 'true')
+
+    ;
+}
 
 var mktable = function(resp) {
     var table = d3.select(resp.selector).one('table');
@@ -40,18 +56,21 @@ var mktable = function(resp) {
     ;
     // Remove leaving tr
     tr.exit().remove();
-    // Add entering tr and lauch a subselect on current+entering tr to
-    // add td
+
+    // merge entering tr to current ones
     var all_tr = tr.enter().append('tr').merge(tr)
+
+    // Bind edit
+    all_tr.on('click', edit);
     all_tr.attr('href', function(d, i) {return resp.href[i];});
-    var td = all_tr
-        .selectAll('td')
-        .data(noop)
-    ;
+
+    // Lauch a subselect on tr to add td children
+    var td = all_tr.selectAll('td').data(noop);
     // Remove leaving td
     td.exit().remove();
-    td.enter().append('td').merge(td).text(String)
-    ;
+    var enter_td = td.enter().append('td')
+    // enter_td.attr('contenteditable', 'true');
+    enter_td.merge(td).text(String);
 }
 
 
@@ -79,7 +98,7 @@ var noop = function(value) {
 };
 
 var pluck = function(key) {
-    return function (obj) { 
+    return function (obj) {
         return obj[key];
     }
 }

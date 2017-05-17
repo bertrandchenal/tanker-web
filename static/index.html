@@ -9,7 +9,12 @@
     <script src="/static/d3.min.js"></script>
     <script src="/static/custom.js"></script>
     <style>
-      #main tr:hover td {background-color: lightgrey; cursor: pointer;}
+      #main tr:hover:not(.active) td {
+	    background-color: lightgrey;
+	    cursor: pointer;
+	  }
+	  tr.active td {background-color: white;}
+	  }
     </style>
   </head>
 
