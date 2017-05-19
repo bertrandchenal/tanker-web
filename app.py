@@ -1,9 +1,10 @@
 import sys
 from bottle import route, run, template, static_file, install
 from tanker import connect, create_tables, yaml_load
-from tanker import View, fetch
+from tanker import View, fetch, logger, Table
 from jinja2 import Environment, FileSystemLoader
 
+logger.setLevel('DEBUG')
 
 jinja_env = Environment(loader=FileSystemLoader('static'))
 jinja_env.globals.update(zip=zip)
@@ -41,7 +42,7 @@ def callback(path):
     return static_file(path, root='static')
 
 @route('/menu')
-def contact():
+def menu():
     rows = []
     for key, values in MENU.items():
         rows.append([values['title'], '/table/%s' % key])
@@ -51,13 +52,13 @@ def contact():
         'selector': '#menu',
     }
 
-@route('/edit/<menu>/<record>')
-def edit(menu, record):
-    details = MENU[menu]
-    table = details['table']
-    fields = details['fields']
-    row = View(table, fields).read({'id': record}).next()
-    return render('edit', row=row, fields=fields, record=record, menu=menu)
+# @route('/edit/<menu>/<record>')
+# def edit(menu, record):
+#     details = MENU[menu]
+#     table = details['table']
+#     fields = details['fields']
+#     row = View(table, fields).read({'id': record}).next()
+#     return render('edit', row=row, fields=fields, record=record, menu=menu)
 
 @route('/table/<menu>')
 def table(menu):
@@ -70,10 +71,26 @@ def table(menu):
     href = ['/edit/%s' % d[0] for d in data]
     rows = [d[1:] for d in data]
     return {
-        'columns': list(details['fields'].keys()),
+        'labels': list(details['fields'].keys()),
+        'columns': list(details['fields'].values()),
         'rows': rows,
         'selector': '#main',
         'href': href,
+        'menu': menu,
+    }
+
+@route('/search/<table>/<col>/<prefix>')
+def search(table, col, prefix):
+    # Use explicit column getter to avoid injection
+    Table.get(table).get_column(col)
+
+    fltr = '(ilike %s {prefix})' % col
+    rows = View(table, [col]).read(
+        fltr, limit=10, args={
+            'prefix': prefix + '%',
+        })
+    return {
+        'values': [x for x, in rows]
     }
 
 

@@ -18,6 +18,40 @@ var init = function(e) {
 };
 
 
+var throttle = function(fun) {
+	var before = new Date();
+	var refresh = function() {
+		var now = new Date();
+		// Throttle calls
+		if (now - before < 300) {
+			return;
+		}
+
+		// Launch fun
+		fun.bind(this)(arguments);
+		before = new Date();
+	};
+	return refresh;
+}
+
+var typeahead = function() {
+	// Read text
+	var el = d3.select(this);
+	var content = el.text();
+	if (!content.length) {
+		return;
+	}
+	var cb = display_typeahead.bind(this);
+	load('/search/plant/name/' + content, cb);
+}
+
+var display_typeahead = function(data) {
+	var table = d3.select('#main table');
+	window.table = table
+	var tr = table.select('thead tr');
+	console.log(table.data(), th.data())
+};
+
 var edit = function() {
     var target = d3.event.target;
     var old_active = d3.select('.active');
@@ -30,18 +64,18 @@ var edit = function() {
     row.attr('class', 'active')
     var td = row.selectAll('td')
         .attr('contenteditable', 'true')
-
+	.on('input', throttle(typeahead))
     ;
 }
 
 var mktable = function(resp) {
-    var table = d3.select(resp.selector).one('table');
+    var table = d3.select(resp.selector).one('table', resp.menu);
 
     // Join dom for THEAD
     var th = table.one('thead').one('tr')
         .selectAll('th')
         .data(resp.columns)
-    // Remove leaving th
+    // Remove extra th
     th.exit().remove();
     // Add entering th new, merge with current and set text
     th.enter()
@@ -62,7 +96,6 @@ var mktable = function(resp) {
 
     // Bind edit
     all_tr.on('click', edit);
-    all_tr.attr('href', function(d, i) {return resp.href[i];});
 
     // Lauch a subselect on tr to add td children
     var td = all_tr.selectAll('td').data(noop);
@@ -112,13 +145,13 @@ var load = function(url, callback) {
     });
 }
 
-d3.selection.prototype.one = function(tag) {
+d3.selection.prototype.one = function(tag, data) {
     // Add one element if it doens't already exists and returns it
     var join = this.selectAll(tag);
     if (join.size() == 1) {
         return join;
     }
-    return join.data([null]).enter().append(tag);
+    return join.data([data]).enter().append(tag);
 };
 
 d3.select(document).on('DOMContentLoaded', init);
