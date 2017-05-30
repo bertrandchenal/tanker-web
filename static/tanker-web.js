@@ -1,6 +1,12 @@
 'use strict'
 
 
+var indexOf = function(arr, item) {
+	console.log(arr, item)
+	return Array.prototype.indexOf.call(arr, item);
+}
+var log = console.log
+
 var init = function(e) {
     load('/menu', mkmenu)
 
@@ -36,20 +42,29 @@ var throttle = function(fun) {
 
 var typeahead = function() {
 	// Read text
-	var el = d3.select(this);
+	var td = d3.event.target;
+	var tr = td.parentNode;
+	var table = tr.parentNode.parentNode;
+	var th = d3.select(table).selectAll('th');
+	var idx = indexOf(tr.children, td);
+	log(idx)
+	window.td=td
+	var el = d3.select(td);
 	var content = el.text();
 	if (!content.length) {
 		return;
 	}
+	var columns = th.data();
+	var current_col = columns[idx]
+	log(current_col)
 	var cb = display_typeahead.bind(this);
-	load('/search/plant/name/' + content, cb);
+	load('/search/' + this.table + '/' + current_col + '/' + content, cb);
 }
 
 var display_typeahead = function(data) {
 	var table = d3.select('#main table');
-	window.table = table
 	var tr = table.select('thead tr');
-	console.log(table.data(), th.data())
+	console.log(data)
 };
 
 var edit = function() {

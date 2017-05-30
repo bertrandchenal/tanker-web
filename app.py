@@ -1,10 +1,10 @@
 import sys
 from bottle import route, run, template, static_file, install
-from tanker import connect, create_tables, yaml_load
+from tanker import connect, create_tables, yaml_load, ctx, Table
 from tanker import View, fetch, logger, Table
 from jinja2 import Environment, FileSystemLoader
 
-logger.setLevel('DEBUG')
+#logger.setLevel('DEBUG')
 
 jinja_env = Environment(loader=FileSystemLoader('static'))
 jinja_env.globals.update(zip=zip)
@@ -31,8 +31,6 @@ cfg = {
 }
 install(TankerPlugin(cfg))
 
-MENU = yaml_load(open('menu.yaml').read())
-
 @route('/')
 def index():
     return static_file('index.html', root='static')
@@ -44,8 +42,8 @@ def callback(path):
 @route('/menu')
 def menu():
     rows = []
-    for key, values in MENU.items():
-        rows.append([values['title'], '/table/%s' % key])
+    for table in ctx.registry.values():
+        rows.append([table.name, '/table/%s' % table.name])
     return {
         'columns': ['Title', 'Url'],
         'rows': rows,
@@ -60,23 +58,28 @@ def menu():
 #     row = View(table, fields).read({'id': record}).next()
 #     return render('edit', row=row, fields=fields, record=record, menu=menu)
 
-@route('/table/<menu>')
-def table(menu):
-    details = MENU[menu]
-    table = details['table']
-    fields = [('id', 'id')]
-    fields.extend(details['fields'].items())
-    print(fields)
-    data = list(View(table, fields).read())
-    href = ['/edit/%s' % d[0] for d in data]
-    rows = [d[1:] for d in data]
+@route('/table/<table_name>')
+def table(table_name):
+    # Create auto view
+    table = Table.get(table_name)
+    fields = []
+    for col in table.own_columns:
+        if col.ctype ==  'M2O':
+            idx = col.get_foreign_table().index
+            foreign_fields = ['%s.%s' % (col.name, i) for i in idx]
+            fields.extend(foreign_fields)
+        else:
+            fields.append(col.name)
+    print fields
+    view = View(table_name, fields)
+    rows = list(view.read())
     return {
-        'labels': list(details['fields'].keys()),
-        'columns': list(details['fields'].values()),
+        # 'labels': [f.name for f in view.fields],
+        'columns': [f.name for f in view.fields],
         'rows': rows,
         'selector': '#main',
-        'href': href,
-        'menu': menu,
+        # 'href': href,
+        # 'menu': menu,
     }
 
 @route('/search/<table>/<col>/<prefix>')
