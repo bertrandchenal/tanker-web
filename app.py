@@ -72,12 +72,13 @@ def table(table_name):
             fields.append(col.name)
     print fields
     view = View(table_name, fields)
-    rows = list(view.read())
+    rows = list(view.read(limit=1000))
     return {
         # 'labels': [f.name for f in view.fields],
         'columns': [f.name for f in view.fields],
         'rows': rows,
         'selector': '#main',
+        'table_name': table_name,
         # 'href': href,
         # 'menu': menu,
     }
