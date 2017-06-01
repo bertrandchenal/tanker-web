@@ -87,6 +87,7 @@ var Menu = function(resp) {
 
 // Small utilities
 var noop = x => x;
+var log = (...args) => console.log(args.map(JSON.stringify).join(' '));
 
 var pluck = function(key) {
     return obj => obj[key];
@@ -102,6 +103,19 @@ var load = function(url, callback) {
     });
 }
 
+var curry = function() {
+	var curry_args = slice(arguments, 1);
+	var curry_fn = arguments[0];
+    if (curry_args.length == 0) {
+        return curry_fn;
+    }
+	var _this = this;
+    return function() {
+        return curry_fn.apply(_this, curry_args.concat(slice(arguments)));
+    }
+}
+
+
 var indexOf = function(arr, item) {
 	return Array.prototype.indexOf.call(arr, item);
 }
@@ -110,17 +124,22 @@ var slice = function(arr, start, end) {
 	return Array.prototype.slice.call(arr, start, end);
 }
 
-var log = console.log
 
 d3.selection.prototype.one = function(tag, data) {
     // Add one element if it doens't already exists and returns it
     var join = this.selectAll(tag);
     if (join.size() == 1) {
-        return join;
+        return join.data([data]);
     }
-    return join.data([data]).enter().append(tag);
+	// This allows to use a tag like 'div#id'
+	var splitted = tag.split('#')
+	var tagel = splitted[0]
+    var el = join.data([data]).enter().append(tagel);
+	if (splitted.length > 1) {
+		el.attr('id', splitted[1]);
+	}
+	return el;
 };
-
 
 var throttle = function(fun) {
 	var before = new Date();
@@ -138,19 +157,30 @@ var throttle = function(fun) {
 	return refresh;
 }
 
-var typeahead = function(route, el) {
+var typeahead = function(route) {
 	// Read text
-	var content = el.text();
+	var target = d3.select(d3.event.target);
+	var content = target.text();
 	if (!content.length) {
 		return;
 	}
-	var cb = display_typeahead.bind(this);
+	var cb = curry(display_typeahead, target);
 	load(route + content, cb);
 }
 
-var display_typeahead = function(data) {
-	var table = d3.select('#main table');
-	var tr = table.select('thead tr');
+var display_typeahead = function(target, data) {
+	var div = d3.select('body').one('div#typeahead');
+	div.attr('class', 'bordered shadow-medium');
+	var ul = div.one('ul');
+	var li = ul.selectAll('li').data(data['values']);
+	li.exit().remove();
+	li.enter().append('li').merge(li).text(noop);
+
+	var popper = new Popper(target.node(), div.node(), {
+		placement: 'bottom'
+	});
+
+
 };
 
 
@@ -167,7 +197,7 @@ var main = function(e) {
             return
         }
         var href = match.attr('href');
-        load(href, resp => new  Table(resp));
+        load(href, resp => new Table(resp));
     }, true)
 };
 

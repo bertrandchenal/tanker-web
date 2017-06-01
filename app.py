@@ -4,7 +4,7 @@ from tanker import connect, create_tables, yaml_load, ctx, Table
 from tanker import View, fetch, logger, Table
 from jinja2 import Environment, FileSystemLoader
 
-#logger.setLevel('DEBUG')
+logger.setLevel('DEBUG')
 
 jinja_env = Environment(loader=FileSystemLoader('static'))
 jinja_env.globals.update(zip=zip)
@@ -85,16 +85,15 @@ def table(table_name):
 
 @route('/search/<table>/<col>/<prefix>')
 def search(table, col, prefix):
-    # Use explicit column getter to avoid injection
-    Table.get(table).get_column(col)
-
-    fltr = '(ilike %s {prefix})' % col
+    # TODO sanitize col
+    fltr = '(like %s {prefix})' % col
     rows = View(table, [col]).read(
-        fltr, limit=10, args={
-            'prefix': prefix + '%',
-        })
+        fltr, limit=10, groupby=[col],
+        args={'prefix': prefix + '%',})
+    values = [x for x, in rows]
+    print(values)
     return {
-        'values': [x for x, in rows]
+        'values': values
     }
 
 
