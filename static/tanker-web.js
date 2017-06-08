@@ -63,6 +63,11 @@ class Table {
 			.attr('contenteditable', 'true')
 			.on('input', throttle(curry(typeahead, route)))
 		;
+		td.on('focusout', function() {
+			if (window.popper) {
+				window.popper.destroy();
+			}
+		});
 	}
 }
 
@@ -146,7 +151,7 @@ var throttle = function(fun) {
 	var refresh = function() {
 		var now = new Date();
 		// Throttle calls
-		if (now - before < 300) {
+		if (now - before < 200) {
 			return;
 		}
 
@@ -169,17 +174,22 @@ var typeahead = function(route) {
 }
 
 var display_typeahead = function(target, data) {
+	var div = d3.select('body').one('div#typeahead-arrow');
 	var div = d3.select('body').one('div#typeahead');
-	div.attr('class', 'bordered shadow-medium');
-	var ul = div.one('ul');
-	var li = ul.selectAll('li').data(data['values']);
-	li.exit().remove();
-	li.enter().append('li').merge(li).text(noop);
+	div.attr('class', 'card shadow-medium');
+	// var ul = div.one('ul');
+	// var li = ul.selectAll('li').data(data['values']);
+	// li.exit().remove();
+	// li.enter().append('li').merge(li).text(noop);
 
-	var popper = new Popper(target.node(), div.node(), {
-		placement: 'bottom'
+	var row = div.selectAll('div.row').data(data['values']);
+	row.exit().remove();
+	row.enter().append('div').attr('class', 'section row')
+		.merge(row).text(noop);
+
+	window.popper = new Popper(target.node(), div.node(), {
+		placement: 'right-start',
 	});
-
 
 };
 
@@ -188,7 +198,7 @@ var display_typeahead = function(target, data) {
 var main = function(e) {
     load('/menu', resp => new Menu(resp))
 
-    d3.selectAll("#menu").on("click", function() {
+    d3.selectAll('#menu').on('click', function() {
         var ev = d3.event;
         ev.preventDefault()
         var match = d3.select(ev.target).filter('a')

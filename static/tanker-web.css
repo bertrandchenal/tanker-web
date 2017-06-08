@@ -1,0 +1,33 @@
+#main tr:hover:not(.active) td {
+	background-color: lightgrey;
+	cursor: pointer;
+}
+
+tr.active td {
+	background-color: white;
+}
+
+#typeahead {
+	padding: .2em;
+	background: rgba(200, 200, 200, .9);
+	max-width: 10em;
+}
+
+#typeahead .row {
+	cursor: pointer;
+}
+
+#typeahead .row:hover,  #typeahead .row.active{
+	background: whitesmoke;
+}
+
+#typeahead-arrow {
+	height: 0;
+	position: absolute;
+	width: 0;
+    left: 10px;
+	border: 10px solid transparent;
+	border-right-color: #DA362A;
+	overflow: visible;
+}
+}
