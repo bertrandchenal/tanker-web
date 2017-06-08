@@ -50,14 +50,6 @@ def menu():
         'selector': '#menu',
     }
 
-# @route('/edit/<menu>/<record>')
-# def edit(menu, record):
-#     details = MENU[menu]
-#     table = details['table']
-#     fields = details['fields']
-#     row = View(table, fields).read({'id': record}).next()
-#     return render('edit', row=row, fields=fields, record=record, menu=menu)
-
 @route('/table/<table_name>')
 def table(table_name):
     # Create auto view
@@ -70,7 +62,7 @@ def table(table_name):
             fields.extend(foreign_fields)
         else:
             fields.append(col.name)
-    print fields
+
     view = View(table_name, fields)
     rows = list(view.read(limit=1000))
     return {

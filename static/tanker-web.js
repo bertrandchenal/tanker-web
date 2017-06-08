@@ -56,18 +56,12 @@ class Table {
 		var idx = indexOf(tr.children, td);
 		var columns = th.data();
 		var current_col = columns[idx];
-		window.td=td;
 
 		var route = '/search/' + table_name + '/' + current_col + '/';
 		var td = row.selectAll('td')
 			.attr('contenteditable', 'true')
 			.on('input', throttle(curry(typeahead, route)))
 		;
-		td.on('focusout', function() {
-			if (window.popper) {
-				window.popper.destroy();
-			}
-		});
 	}
 }
 
@@ -173,23 +167,66 @@ var typeahead = function(route) {
 	load(route + content, cb);
 }
 
-var display_typeahead = function(target, data) {
-	var div = d3.select('body').one('div#typeahead-arrow');
+var display_typeahead = function(input, data) {
+    var input_node = input.node();
+    var width = input_node.getBoundingClientRect().width;
+
+    // Add div to body
+	// var div = d3.select('body').one('div#typeahead-arrow');
 	var div = d3.select('body').one('div#typeahead');
-	div.attr('class', 'card shadow-medium');
-	// var ul = div.one('ul');
-	// var li = ul.selectAll('li').data(data['values']);
-	// li.exit().remove();
-	// li.enter().append('li').merge(li).text(noop);
+	div
+        .attr('class', 'card shadow-medium')
+        .style('width', width + 'px')
+    ;
 
 	var row = div.selectAll('div.row').data(data['values']);
 	row.exit().remove();
-	row.enter().append('div').attr('class', 'section row')
-		.merge(row).text(noop);
+	row = row.enter()
+        .append('div').attr('class', 'section row')
+        .merge(row).text(noop)
+    ;
 
-	window.popper = new Popper(target.node(), div.node(), {
-		placement: 'right-start',
+    // Launch popper
+    Popper.placements = ['bottom-start', 'right', 'left'];
+	var popper = new Popper(input_node, div.node(), {
+		placement: 'bottom-start',
 	});
+
+    // blur event on input
+	input.on('blur', function() {
+        // Delay destroy to let any click on row succeed
+		setTimeout(function() {
+            popper.destroy();
+        }, 100);
+	});
+
+    // click event on row
+    row.on('click', function() {
+        var row = d3.select(d3.event.target);
+        var text = row.data();
+        input.text(text);
+		popper.destroy();
+    });
+
+
+    // keydown on input
+    // see http://jsfiddle.net/qAHC2/292/
+    input.on('keydown', function() {
+        var code = d3.event.keyCode;
+        if (code == 13) {
+            // 13 is enter
+        }
+        else if (code == 27) {
+            // 27 is esc
+            popper.destroy();
+        }
+        else if (code == 38) {
+            // 38 is up arrow
+        }
+        else if (code == 40) {
+            // 40 is down arrow
+        }
+    });
 
 };
 

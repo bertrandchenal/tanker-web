@@ -8,9 +8,7 @@ tr.active td {
 }
 
 #typeahead {
-	padding: .2em;
-	background: rgba(200, 200, 200, .9);
-	max-width: 10em;
+	background: rgba(250, 250, 250, .95);
 }
 
 #typeahead .row {
