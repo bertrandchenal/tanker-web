@@ -1,10 +1,14 @@
+from  datetime import datetime, date
+import json
 import sys
-from bottle import route, run, template, static_file, install
-from tanker import connect, create_tables, yaml_load, ctx, Table
-from tanker import View, fetch, logger, Table
+
+from bottle import route, run, template, static_file, install, JSONPlugin
 from jinja2 import Environment, FileSystemLoader
+from tanker import View, fetch, logger, Table
+from tanker import connect, create_tables, yaml_load, ctx, Table
 
 logger.setLevel('DEBUG')
+
 
 jinja_env = Environment(loader=FileSystemLoader('static'))
 jinja_env.globals.update(zip=zip)
@@ -24,12 +28,20 @@ class TankerPlugin:
                 return callback(*args, **kwargs)
         return wrap
 
-# Install plugin
+# Install plugins
 cfg = {
     'db_uri': 'sqlite:///storm.db',
     'schema': open('schema.yaml').read(),
 }
 install(TankerPlugin(cfg))
+def json_serial(obj):
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError ("Type %s not serializable" % type(obj))
+
+to_json = lambda x: json.dumps(x, default=json_serial)
+install(JSONPlugin(json_dumps=to_json))
+
 
 @route('/')
 def index():
@@ -39,15 +51,11 @@ def index():
 def callback(path):
     return static_file(path, root='static')
 
-@route('/menu')
-def menu():
-    rows = []
-    for table in ctx.registry.values():
-        rows.append([table.name, '/table/%s' % table.name])
+@route('/menu/<prefix>')
+def menu(prefix):
+    values = [t for t in sorted(ctx.registry) if t.startswith(prefix)]
     return {
-        'columns': ['Title', 'Url'],
-        'rows': rows,
-        'selector': '#menu',
+        'values': values[:10],
     }
 
 @route('/table/<table_name>')

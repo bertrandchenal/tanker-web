@@ -9,6 +9,7 @@ tr.active td {
 
 #typeahead {
 	background: rgba(250, 250, 250, .95);
+    border-radius: .3em;
 }
 
 #typeahead .row {
