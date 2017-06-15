@@ -75,14 +75,59 @@ class Table {
 class Menu {
 
     constructor(selector) {
-        this.input = d3.select(selector).one('input');
+        this.el = d3.select(selector);
+		this.selected_container = this.el.one('span#selected-container')
+			.attr('class', 'input-group fluid');
+		this.selector_container = this.el.one('span#selector-container')
+			.attr('class', 'input-group fluid');
+		this.option_container = this.el.one('span#option-container')
+			.attr('class', 'input-group fluid');
+
+		this.selected = [];
+		this.refresh();
         var route = '/menu/';
-        var cb = this.display_table.bind(this);
+        var cb = this.push.bind(this);
         this.input.on('input', throttle(curry(typeahead, route, cb)))
     }
 
-    display_table(name) {
+	refresh() {
+
+		var groups = this.selected_container.selectAll('div.button-group')
+			.data(this.selected)
+		groups.exit().remove();
+		groups = groups.enter().append('div').merge(groups)
+			.attr('class', 'button-group')
+			.property('index', (d, i) => i)
+		;
+
+		var buttons = groups.selectAll('button')
+			.data(function(d) {return [d, '✖']})
+			.enter()
+			.append('button').text(noop)
+			.filter((d, i) => i == 1)
+			.on('click', this.pop.bind(this))
+		;
+		buttons.exit().remove()
+		
+		this.input = this.selector_container.one('input');
+		this.input
+			.attr('placeholder', 'Add Table')
+			.property('value', '');
+		this.burger = this.option_container.one('button#burger').text('☰');
+	}
+
+	pop() {
+        d3.event.preventDefault();
+		var group = d3.select(d3.event.target.parentNode);
+		var idx = group.property('index');
+		this.selected.splice(idx, 1);
+		this.refresh();
+	}
+
+    push(name) {
         load('/table/' + name, resp => new Table(resp));
+		this.selected.push(name);
+		this.refresh();
     }
 
 };
@@ -166,7 +211,6 @@ var typeahead = function(route, select_cb) {
     if (! content || !content.length) {
         return;
     }
-    log('select_cb', select_cb)
     var cb = curry(display_typeahead, target, select_cb);
     load(route + content, cb);
 }
