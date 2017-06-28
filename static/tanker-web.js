@@ -6,19 +6,25 @@ class Table {
     constructor(resp) {
         this.el = d3.select(resp.selector).one('table', resp.table_name);
 
-        // Join dom for THEAD
-        var th = this.el.one('thead').one('tr')
-            .selectAll('th')
+        // Join dom for THEAD rows
+        var head_tr = this.el.one('thead').selectAll('tr')
             .data(resp.columns)
-        // Remove extra th
-        th.exit().remove();
-        // Add entering th new, merge with current and set text
-        th.enter()
-            .append('th')
-            .merge(th).text(this.deserialize)
+        head_tr.exit().remove();
+        head_tr = head_tr.enter()
+            .append('tr')
+            .merge(head_tr)
         ;
 
-        // Join dom for TBODY
+		var th = head_tr.selectAll('th').data(noop)
+        th.exit().remove();
+        th = th.enter()
+            .append('th')
+            .merge(th)
+        ;
+		th.text(d => d.label);
+		th.attr('colspan', d => d.colspan);
+
+        // Join dom for TBODY rows
         var tr = this.el.one('tbody')
             .selectAll('tr')
             .data(resp.rows)
@@ -64,7 +70,7 @@ class Table {
         var columns = th.data();
         var current_col = columns[idx];
 
-        var route = '/search/' + table_name + '/' + current_col + '/';
+        var route = (content) => '/search/' + table_name + '/' + current_col + '/' + content;
         var td = row.selectAll('td')
             .attr('contenteditable', 'true')
             .on('input', throttle(curry(typeahead, route, noop)))
@@ -85,13 +91,26 @@ class Menu {
 
 		this.selected = [];
 		this.refresh();
-        var route = '/menu/';
+
         var cb = this.push.bind(this);
-        this.input.on('input', throttle(curry(typeahead, route, cb)))
+        this.input.on('input', throttle(curry(typeahead, this.route.bind(this), cb)))
     }
 
-	refresh() {
+	route(content) {
+		if (this.selected.length) {
+			var params = 'selected=' + encodeURIComponent(this.selected.join('+'));
+			return '/menu/' + content + '?' + params;
+		}
+		return '/menu/' + content;
+	}
 
+	refresh() {
+		// Reload main table
+		if (this.selected.length) {
+			var tables = this.selected.join('+');
+			query('/table/' + tables, resp => new Table(resp));
+		}
+		// Refesh menu dom
 		var groups = this.selected_container.selectAll('div.button-group')
 			.data(this.selected)
 		groups.exit().remove();
@@ -125,7 +144,6 @@ class Menu {
 	}
 
     push(name) {
-        load('/table/' + name, resp => new Table(resp));
 		this.selected.push(name);
 		this.refresh();
     }
@@ -140,7 +158,7 @@ var pluck = function(key) {
     return obj => obj[key];
 }
 
-var load = function(url, callback) {
+var query = function(url, callback) {
     var args = slice(arguments, 2);
     d3.json(url, function(error, resp) {
         if (error) {
@@ -212,7 +230,7 @@ var typeahead = function(route, select_cb) {
         return;
     }
     var cb = curry(display_typeahead, target, select_cb);
-    load(route + content, cb);
+    query(route(content), cb);
 }
 
 var display_typeahead = function(el, select_cb, data) {
