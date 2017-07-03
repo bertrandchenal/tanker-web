@@ -65,12 +65,11 @@ class Table {
 
         // Enable typeahead
         var table_name = this.el.data();
-        var th = this.el.selectAll('th');
+		var th = this.el.selectAll('thead tr:nth-last-child(1) th')
         var idx = indexOf(tr.children, td);
         var columns = th.data();
-        var current_col = columns[idx];
-
-        var route = (content) => '/search/' + table_name + '/' + current_col + '/' + content;
+        var column = columns[idx];
+        var route = (content) => '/search/' + column.table + '/' + column.name + '/' + content;
         var td = row.selectAll('td')
             .attr('contenteditable', 'true')
             .on('input', throttle(curry(typeahead, route, noop)))
@@ -276,6 +275,7 @@ var display_typeahead = function(el, select_cb, data) {
     el.on('focusout', delayed_destroy);
 
     var teardown = function(data) {
+		console.log(data)
         // row = d3.select(d3.event.target);
         if (el_node.tagName == 'INPUT') {
             el.property('value', data);
@@ -287,7 +287,10 @@ var display_typeahead = function(el, select_cb, data) {
     }
 
     // click event on row
-    row.on('click', teardown);
+    row.on('click', function() {
+		var txt = d3.select(this).text();
+		teardown(txt);
+	});
 
     // keydown on input
     // see http://jsfiddle.net/qAHC2/292/
@@ -304,15 +307,23 @@ var display_typeahead = function(el, select_cb, data) {
         }
         else if (code == 38) {
             // 38 is up arrow
-            var prev = div.select('.active ~ .row');
+            var active = div.select('.active');
+			var prev = active.node().previousSibling;
+			if (prev === null) {
+				return
+			}
             div.select('.active').classed('active', false);
-            prev.classed('active', true);
+            d3.select(prev).classed('active', true);
         }
         else if (code == 40) {
             // 40 is down arrow
-            var next = div.select('.active + .row');
+            var active = div.select('.active');
+			var next = active.node().nextSibling;
+			if (next === null) {
+				return
+			}
             div.select('.active').classed('active', false);
-            next.classed('active', true);
+            d3.select(next).classed('active', true);
         }
         return false;
     });

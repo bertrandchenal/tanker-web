@@ -4,7 +4,7 @@ from  datetime import datetime, date
 import json
 import sys
 
-from bottle import route, run, template, static_file, install, JSONPlugin,
+from bottle import route, run, template, static_file, install, JSONPlugin
 from jinja2 import Environment, FileSystemLoader
 from tanker import View, fetch, logger, Table
 from tanker import connect, create_tables, yaml_load, ctx, Table
@@ -87,7 +87,7 @@ def table(tables):
 
     # Loop on table and fill fields list
     for table in tables:
-        full = len(tables) == 1 or not table is main
+        full = True #len(tables) == 1 or not table is main
         if table is main:
             prefix = ''
         else:
@@ -113,13 +113,24 @@ def table(tables):
 
     # Generate output
     view = View(main.name, fields)
-    rows = list(view.read(limit=1000))
-    field_cols = [
-        {'label': f.ref and f.ref.remote_field or f.col.name, 'colspan': 1}
-        for f in view.fields]
-    table_cols = list(compress(
-        f.ref and f.ref.remote_table.name or main.name for f in view.fields))
+    field_cols = []
+    for field in view.fields:
+        if field.ref:
+            name = field.ref.remote_field
+            table = field.ref.remote_table.name
+        else:
+            name = field.col.name
+            table = main.name
+        field_cols.append({
+            'label': name, # XXX better label
+            'name': name,
+            'table': table,
+            'colspan': 1,
+        })
+
+    table_cols = list(compress(f['table'] for f in field_cols))
     table_cols = [{'label': n, 'colspan': c} for n, c in table_cols]
+    rows = list(view.read(limit=1000))
     return {
         'columns': [table_cols, field_cols],
         'rows': rows,

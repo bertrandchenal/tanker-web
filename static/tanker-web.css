@@ -17,7 +17,7 @@ tr.active td {
 }
 
 #typeahead .row:hover,  #typeahead .row.active{
-	background: whitesmoke;
+	background: lightblue;
 }
 
 #typeahead-arrow {
