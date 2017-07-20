@@ -16,33 +16,35 @@
 
     <div class="container">
       <div class="row">
-        <div class="col-sm-12" >
-
-		  <form>
-			<div class="input-group fluid" id="menu">
-			  <!-- <label for="table">Tables:</label> -->
-			  <!-- <div class="button-group"> -->
-			  <!-- 	<button>plant_fuel</button> -->
-			  <!-- 	<button>✖</button> -->
-			  <!-- </div> -->
-			  <!-- <div class="button-group"> -->
-			  <!-- 	<button>prm_plant</button> -->
-			  <!-- 	<button>✖</button> -->
-			  <!-- </div> -->
-			  <!-- <input value="" id="menu" placeholder="Add Table"> -->
-			  <!-- <button>☰</button>			   -->
-			</div>
+        <div class="col-md-12">
+		  <form id="menu">
 		  </form>
 		</div>	
       </div>
 
+	  <input id="modal-option-toggle" type="checkbox"/>
+	  <div class="modal">
+		<div class="card" id="option-card">
+		  <label for="modal-option-toggle" class="close"></label>
+		  <h3 class="section">Options</h3>
+		  <div class="section" id="option-section"></div>
+		  <!-- <div class="section"> -->
+		  <!-- 	<label class="button primary" for="modal-option-toggle">Ok</label> -->
+		  <!-- 	<label class="button" for="modal-option-toggle">Cancel</label> -->
+		  <!-- </div> -->
+		</div>
+	  </div>
+
       <div class="row">
-        <div class="col-sm-12" >
+        <div class="col-md-12">
           <div class="card fluid">
             <div id="main" style="overflow:auto">
             </div>
           </div>
         </div>
       </div>
+
+</div>
+
   </body>
 </html>

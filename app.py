@@ -4,7 +4,8 @@ from  datetime import datetime, date
 import json
 import sys
 
-from bottle import route, run, template, static_file, install, JSONPlugin
+from bottle import (
+    route, run, template, static_file, install, JSONPlugin, request)
 from jinja2 import Environment, FileSystemLoader
 from tanker import View, fetch, logger, Table
 from tanker import connect, create_tables, yaml_load, ctx, Table
@@ -116,29 +117,34 @@ def table(tables):
     field_cols = []
     for field in view.fields:
         if field.ref:
-            name = field.ref.remote_field
             table = field.ref.remote_table.name
         else:
-            name = field.col.name
             table = main.name
         field_cols.append({
-            'label': name, # XXX better label
-            'name': name,
+            'label': field.col.name, # XXX better label
+            'name': field.name,
             'table': table,
             'colspan': 1,
         })
 
-    table_cols = list(compress(f['table'] for f in field_cols))
-    table_cols = [{'label': n, 'colspan': c} for n, c in table_cols]
-    rows = list(view.read(limit=1000))
+    fltr = []
+    params = dict(request.params)
+    names = set(f.name for f in view.fields)
+    for k, v in params.items():
+        if k not in names:
+            continue
+        # TODO sanitize, use {}
+        fltr.append('(ilike %s "%s%%")' % (k, v))
+
+    rows = list(view.read(fltr, limit=1000))
     return {
-        'columns': [table_cols, field_cols],
+        'columns': [field_cols],
         'rows': rows,
         'selector': '#main',
         'table_name': main.name,
     }
 
-@route('/search/<table>/<col>/<prefix>')
+@route('/search/<table>/<col>/<prefix:path>')
 def search(table, col, prefix):
     # TODO sanitize col
     fltr = '(like %s {prefix})' % col
@@ -154,7 +160,7 @@ def search(table, col, prefix):
 def main():
     action = sys.argv[1]
     if action == 'run':
-        run(host='localhost', port=8080, reloader=True)
+        run(host='localhost', port=8080) #, server='cherrypy'
     elif action == 'init':
         with connect(cfg):
             create_tables()

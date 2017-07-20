@@ -5,6 +5,7 @@ class Table {
 
     constructor(resp) {
         this.el = d3.select(resp.selector).one('table', resp.table_name);
+		// this.el.attr('class', 'scrollable');
 
         // Join dom for THEAD rows
         var head_tr = this.el.one('thead').selectAll('tr')
@@ -69,7 +70,8 @@ class Table {
         var idx = indexOf(tr.children, td);
         var columns = th.data();
         var column = columns[idx];
-        var route = (content) => '/search/' + column.table + '/' + column.name + '/' + content;
+        var route = (content) => '/search/' + column.table + '/' + column.name
+			+ '/' + encodeURIComponent(content);
         var td = row.selectAll('td')
             .attr('contenteditable', 'true')
             .on('input', throttle(curry(typeahead, route, noop)))
@@ -81,14 +83,21 @@ class Menu {
 
     constructor(selector) {
         this.el = d3.select(selector);
-		this.selected_container = this.el.one('span#selected-container')
-			.attr('class', 'input-group fluid');
-		this.selector_container = this.el.one('span#selector-container')
-			.attr('class', 'input-group fluid');
-		this.option_container = this.el.one('span#option-container')
-			.attr('class', 'input-group fluid');
+		this.input_row = this.el.one('div#input-row');
+		this.input_row.attr('class', 'input-group fluid row');
+		this.selected_container = this.input_row.one('div#selected-container')
+			// .attr('class', 'input-group fluid')
+		;
+		this.selector_container = this.input_row.one('span#selector-container')
+			// .attr('class', 'input-group fluid')
+		;
+		this.option_container = this.input_row.one('span#option-container')
+			// .attr('class', 'input-group fluid')
+		;
 
-		this.selected = [];
+		var hash = window.location.hash;
+		this.selected = hash.length ? hash.slice(1).split('+') : [];
+		this.filters = {};
 		this.refresh();
 
         var cb = this.push.bind(this);
@@ -104,41 +113,114 @@ class Menu {
 	}
 
 	refresh() {
-		// Reload main table
-		if (this.selected.length) {
-			var tables = this.selected.join('+');
-			query('/table/' + tables, resp => new Table(resp));
-		}
+		// Extract filter info
+		var option_td = d3.selectAll('#option-section table td');
+
+		this.filters = {};
+		this.refresh_table();
+
 		// Refesh menu dom
 		var groups = this.selected_container.selectAll('div.button-group')
 			.data(this.selected)
 		groups.exit().remove();
 		groups = groups.enter().append('div').merge(groups)
 			.attr('class', 'button-group')
-			.property('index', (d, i) => i)
 		;
 
 		var buttons = groups.selectAll('button')
-			.data(function(d) {return [d, '✖']})
-			.enter()
-			.append('button').text(noop)
+			.data((d, i) => [
+				{'text': d, 'idx': i},
+				{'text': '✖', 'idx': i},
+			]);
+		buttons.enter()
+			.append('button')
+			.merge(buttons)
+			.text((d) => d.text)
 			.filter((d, i) => i == 1)
 			.on('click', this.pop.bind(this))
 		;
-		buttons.exit().remove()
 		
 		this.input = this.selector_container.one('input');
 		this.input
 			.attr('placeholder', 'Add Table')
 			.property('value', '');
-		this.burger = this.option_container.one('button#burger').text('☰');
+		this.burger = this.option_container.one('label#burger').text('☰');
+		this.burger.attr('class', 'button');
+		this.burger.attr('for', 'modal-option-toggle');
+
 	}
 
-	pop() {
-        d3.event.preventDefault();
-		var group = d3.select(d3.event.target.parentNode);
-		var idx = group.property('index');
-		this.selected.splice(idx, 1);
+	refresh_table(skip_refresh_option) {
+		var hash = window.location.hash;
+		var tables = this.selected.join('+');
+		if (tables != hash) {
+			window.location.hash = tables;
+		}
+		if (this.selected.length) {
+			var params = Object.entries(this.filters).map(
+				([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+			if (params.length) {
+				params = '?' + params.join('&');
+			}
+			query(
+				'/table/' + tables + params,
+				function(resp) {
+					new Table(resp);
+					if (!skip_refresh_option) {
+						this.refresh_option(resp);
+					}
+				}.bind(this));
+		}
+	}
+
+	refresh_option(resp) {
+		// Refresh pop-up
+		var options_section = d3.select('#option-section');
+		var table = options_section.one('table');
+
+		// THEAD
+        var head_tr = table.one('thead').selectAll('tr')
+            .data([['Field', 'Filter']])
+        head_tr = head_tr.enter().append('tr');
+		var th = head_tr.selectAll('th').data(noop)
+        th = th.enter()
+            .append('th')
+        ;
+		th.text(noop);
+
+		// TBODY
+        var tr = table.one('tbody')
+            .selectAll('tr')
+            .data(resp.columns[0])
+        ;
+        tr.exit().remove();
+        var all_tr = tr.enter().append('tr').merge(tr)
+        var td = all_tr.selectAll('td').data(function(d, i) {
+			return [
+				{'text': d.label, 'idx': i},
+				{'text': this.filters[d.name], 'field': d.name},
+		]}.bind(this));
+        td.exit().remove();
+        var enter_td = td.enter().append('td');
+        var all_td = enter_td.merge(td);
+		all_td.text((d) => d.text);
+		all_td.property('index', (d, i) => i)
+
+		// Make filter column editable
+		var filters = all_td.filter((datum, pos) => pos == 1);
+		filters.attr('contenteditable', 'true');
+        filters.on('input', throttle(this.update_filter, this));
+	}
+
+	update_filter(datum) {
+		var target = d3.select(d3.event.target);
+		var content = target.text();
+		this.filters[datum.field] = content;
+		this.refresh_table(true);
+	}
+
+	pop(datum) {
+		this.selected.splice(datum.idx, 1);
 		this.refresh();
 	}
 
@@ -205,7 +287,7 @@ d3.selection.prototype.one = function(tag, data) {
     return el;
 };
 
-var throttle = function(fun) {
+var throttle = function(fun, self) {
     var before = new Date();
     var refresh = function() {
         var now = new Date();
@@ -215,7 +297,7 @@ var throttle = function(fun) {
         }
 
         // Launch fun
-        fun.bind(this)(arguments);
+        fun.apply(self, arguments);
         before = new Date();
     };
     return refresh;
@@ -238,7 +320,7 @@ var display_typeahead = function(el, select_cb, data) {
     // Add div to body
     var div = d3.select('body').one('div#typeahead');
     div
-        .attr('class', 'card shadow-medium')
+        .attr('class', 'card shadowed')
         .style('width', width + 'px')
     ;
 
@@ -253,9 +335,8 @@ var display_typeahead = function(el, select_cb, data) {
     row.classed('active', (d, i) => i == 0);
 
     // Launch popper
-    Popper.placements = ['bottom-start', 'right', 'left'];
     var popper = new Popper(el_node, div.node(), {
-        placement: 'bottom-start',
+        placement: 'auto',
     });
     var destroy = function() {
         popper.destroy();
@@ -275,8 +356,6 @@ var display_typeahead = function(el, select_cb, data) {
     el.on('focusout', delayed_destroy);
 
     var teardown = function(data) {
-		console.log(data)
-        // row = d3.select(d3.event.target);
         if (el_node.tagName == 'INPUT') {
             el.property('value', data);
         } else {
