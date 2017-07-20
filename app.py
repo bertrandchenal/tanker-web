@@ -144,9 +144,10 @@ def table(tables):
         'table_name': main.name,
     }
 
-@route('/search/<table>/<col>/<prefix:path>')
-def search(table, col, prefix):
+@route('/search/<col>/<prefix:path>')
+def search(col, prefix):
     # TODO sanitize col
+    table, col = col.split('.', 1)
     fltr = '(like %s {prefix})' % col
     rows = View(table, [col]).read(
         fltr, limit=10, groupby=col,

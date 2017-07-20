@@ -70,8 +70,11 @@ class Table {
         var idx = indexOf(tr.children, td);
         var columns = th.data();
         var column = columns[idx];
-        var route = (content) => '/search/' + column.table + '/' + column.name
-			+ '/' + encodeURIComponent(content);
+		if (column.name.indexOf('.') < 0) {
+			return;
+		}
+        var route = (content) => `/search/${column.name}/`
+			+ encodeURIComponent(content);
         var td = row.selectAll('td')
             .attr('contenteditable', 'true')
             .on('input', throttle(curry(typeahead, route, noop)))
