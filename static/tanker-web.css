@@ -26,7 +26,17 @@ table thead tr:not(:first-child) th {
 }
 
 
-#option-card {
+#modal-body {
 	max-height: 100vh;
-	max-width: 120vh;
+	/* max-width: 120vh; */
+}
+
+.header {
+	cursor: pointer;
+	padding-right: 2em;
+}
+
+.header-icon {
+	cursor: pointer;
+	float: right;
 }

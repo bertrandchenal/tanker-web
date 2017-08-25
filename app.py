@@ -85,10 +85,10 @@ def table(tables):
     tables = map(Table.get, tables)
     main = tables[0]
     fields = []
+    simple_table = len(tables) == 1
 
     # Loop on table and fill fields list
     for table in tables:
-        full = True #len(tables) == 1 or not table is main
         if table is main:
             prefix = ''
         else:
@@ -101,10 +101,10 @@ def table(tables):
         if prefix:
             prefix += '.'
         add_fields = lambda *xs: fields.extend(prefix + x for x in xs \
-                                           if prefix + x not in fields)
+                                               if prefix + x not in fields)
         for col in table.own_columns:
             if col.ctype ==  'M2O':
-                if not full:
+                if not simple_table:
                     # Skip relation in multi-table query
                     continue
                 ft = col.get_foreign_table()
@@ -118,10 +118,12 @@ def table(tables):
     for field in view.fields:
         if field.ref:
             table = field.ref.remote_table.name
+            label = field.col.name if simple_table else field.ref.remote_field
         else:
             table = main.name
+            label= field.col.name
         field_cols.append({
-            'label': field.col.name, # XXX better label
+            'label': label,
             'name': field.name,
             'table': table,
             'colspan': 1,
@@ -132,6 +134,8 @@ def table(tables):
     names = set(f.name for f in view.fields)
     for k, v in params.items():
         if k not in names:
+            continue
+        if not v.strip():
             continue
         # TODO sanitize, use {}
         fltr.append('(ilike %s "%s%%")' % (k, v))

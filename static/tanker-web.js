@@ -1,9 +1,12 @@
 'use strict'
 
+const burger_icon = '\u2630';
+const cross_icon = '\u2716';
 
 class Table {
 
-    constructor(resp) {
+    constructor(resp, menu) {
+		this.menu = menu;
         this.el = d3.select(resp.selector).one('table', resp.table_name);
 		// this.el.attr('class', 'scrollable');
 
@@ -22,8 +25,15 @@ class Table {
             .append('th')
             .merge(th)
         ;
-		th.text(d => d.label);
 		th.attr('colspan', d => d.colspan);
+
+		var span = th.selectAll('span').data(d => [d.label, burger_icon])
+        span.exit().remove();
+		span = span.enter().append('span').merge(span);
+		span.text(noop);
+		span.attr('class', (d, i) => i == 0 ? 'header': 'header-icon')
+		span.on('click', this.header_menu.bind(this));
+
 
         // Join dom for TBODY rows
         var tr = this.el.one('tbody')
@@ -38,6 +48,7 @@ class Table {
 
         // Bind edit
         all_tr.on('click', this.edit.bind(this));
+        all_tr.on('focusin', this.edit.bind(this));
 
         // Lauch a subselect on tr to add td children
         var td = all_tr.selectAll('td').data(noop);
@@ -46,6 +57,22 @@ class Table {
         var enter_td = td.enter().append('td')
         enter_td.merge(td).text(this.deserialize);
     }
+
+	save() {
+		var rows = d3.selectAll('.edited');
+		var dataset = [];
+		rows.each(function() {
+			var el = d3.select(this);
+			var items = el.selectAll('td')
+			var row_values = []
+			items.each(function() {
+				row_values.push(d3.select(this).text())
+			})
+			dataset.push(row_values);
+		});
+		log(dataset);
+		rows.classed('edited', false);
+	}
 
     deserialize(data) {
         if (data === null) {
@@ -58,29 +85,152 @@ class Table {
         var td = d3.event.target;
         var tr = td.parentNode;
 
-        // Update active line
+        // Update active line and flag as potentially edited
         var old_active = d3.select('.active');
-        old_active.attr('class', '');
+        old_active.classed('active', false);
         var row = d3.select(tr);
-        row.attr('class', 'active')
+        row.attr('class', 'active edited')
 
+		
         // Enable typeahead
         var table_name = this.el.data();
 		var th = this.el.selectAll('thead tr:nth-last-child(1) th')
         var idx = indexOf(tr.children, td);
         var columns = th.data();
         var column = columns[idx];
+        var td = row.selectAll('td')
+            .attr('contenteditable', 'true')
+
 		if (column.name.indexOf('.') < 0) {
 			return;
 		}
-        var route = (content) => `/search/${column.name}/`
+		// Enable typeahead on fk
+		var route = (content) => `/search/${column.name}/`
 			+ encodeURIComponent(content);
-        var td = row.selectAll('td')
-            .attr('contenteditable', 'true')
-            .on('input', throttle(curry(typeahead, route, noop)))
-        ;
+		td.on('input', throttle(curry(typeahead, route, noop)));
     }
+
+	header_menu() {
+		// Reveal popup
+		d3.select('#modal-option-toggle').node().click();
+
+		// Find which column was clicked
+        var span = d3.event.target;
+        var th = span.parentNode;
+		var column_info = d3.select(th).data()[0];
+
+		// Create header menu object
+		var el = d3.select('#modal-body');
+		var hm = new HeaderMenu(el, column_info, this);
+	}
 }
+
+
+class HeaderMenu {
+
+	constructor(el, info, table) {
+		this.content = el.select('.modal-content');
+		this.footer = el.select('.modal-footer');
+		this.info = info;
+		this.table = table
+		this.refresh();
+
+		// Set title
+		el.one('h3.title').text(info.label);
+
+		// Add button
+		var button_data = [{
+			'label': 'Ok',
+			'class': 'button primary',
+			'action': this.save.bind(this),
+		}];
+		var buttons = this.footer.selectAll('label').data(button_data);
+		buttons.exit().remove();
+		buttons.enter().append('label')
+			.text(d => d.label)
+			.attr('class', (d) => d.class)
+			.attr('for', 'modal-option-toggle')
+			.on('click', (d, i) => d.action ? d.action(): null)
+		;
+	}
+
+	save() {
+		var tags = ['input', 'select']
+		var main_menu = this.table.menu;
+		var name = this.info.name;
+		for (var pos in tags) {
+			var els = this.content.selectAll(tags[pos]);
+			els.each(function() {
+				var el = d3.select(this);
+				var value = el.property('value');
+				var type = el.attr('id')
+				if (type == 'filter') {
+					main_menu.filters[name] = value;
+				}
+			})
+		}
+		main_menu.refresh_table();
+	}
+	
+	refresh() {
+		var main_menu = this.table.menu;
+		var form = this.content.one('form');
+		var fields = [
+			{
+				'label': 'Filter',
+				'id': 'filter',
+				'type': 'text',
+				'value': main_menu.filters[this.info.name] || '',
+			},
+			{
+				'label': 'Sort',
+				'id': 'sort',
+				'type': 'select',
+				'choice': [['', ''], ['asc', 'Ascending'] , ['desc', 'Descending']],
+			},
+		];
+		var group = form.selectAll('div.input-group').data(fields);
+		group.exit().remove();
+		group = group.enter()
+			.append('div')
+			.attr('class', 'input-group vertical')
+			.merge(group)
+		;
+
+		var self = this;
+		group.each(function(d, i) {
+			var el = d3.select(this);
+			self.option_field.apply(self, [el, d, i]);
+		})
+	}
+
+	option_field(el, field, pos) {
+		// var el = d3.select(this);
+		el.one('label')
+			.text(field.label)
+			.attr('for', field.id);
+		if (field.type == 'text') {
+			el.one('input')
+				.attr('id', field.id)
+				.attr('placeholder', field.label)
+				.property('value', field.value)
+			;
+		} else if (field.type == 'select') {
+			var select = el.one('select')
+				.attr('id', field.id)
+				.attr('disabled', '') // Sorting not yet supported
+			;
+			var option = select.selectAll('option').data(field.choice)
+			option.exit().remove();
+			option = option.enter()
+				.append('option')
+				.merge(option)
+				.attr('value', d => d[0])
+				.text(d => d[1]);
+		}
+	}
+}
+
 
 class Menu {
 
@@ -89,13 +239,13 @@ class Menu {
 		this.input_row = this.el.one('div#input-row');
 		this.input_row.attr('class', 'input-group fluid row');
 		this.selected_container = this.input_row.one('div#selected-container')
-			// .attr('class', 'input-group fluid')
+			.attr('class', 'input-group fluid')
 		;
 		this.selector_container = this.input_row.one('span#selector-container')
-			// .attr('class', 'input-group fluid')
+			.attr('class', 'input-group fluid')
 		;
-		this.option_container = this.input_row.one('span#option-container')
-			// .attr('class', 'input-group fluid')
+		this.button_container = this.input_row.one('span#button-container')
+			.attr('class', 'input-group fluid')
 		;
 
 		var hash = window.location.hash;
@@ -105,6 +255,12 @@ class Menu {
 
         var cb = this.push.bind(this);
         this.input.on('input', throttle(curry(typeahead, this.route.bind(this), cb)))
+
+		this.button_container.one('button#save')
+			.text('Save')
+			.on('click', function() {
+				this.table.save();
+		}.bind(this))
     }
 
 	route(content) {
@@ -116,9 +272,6 @@ class Menu {
 	}
 
 	refresh() {
-		// Extract filter info
-		var option_td = d3.selectAll('#option-section table td');
-
 		this.filters = {};
 		this.refresh_table();
 
@@ -133,7 +286,7 @@ class Menu {
 		var buttons = groups.selectAll('button')
 			.data((d, i) => [
 				{'text': d, 'idx': i},
-				{'text': '✖', 'idx': i},
+				{'text': cross_icon, 'idx': i},
 			]);
 		buttons.enter()
 			.append('button')
@@ -145,15 +298,11 @@ class Menu {
 		
 		this.input = this.selector_container.one('input');
 		this.input
-			.attr('placeholder', 'Add Table')
+			.attr('placeholder', 'Show Table')
 			.property('value', '');
-		this.burger = this.option_container.one('label#burger').text('☰');
-		this.burger.attr('class', 'button');
-		this.burger.attr('for', 'modal-option-toggle');
-
 	}
 
-	refresh_table(skip_refresh_option) {
+	refresh_table() {
 		var hash = window.location.hash;
 		var tables = this.selected.join('+');
 		if (tables != hash) {
@@ -168,58 +317,9 @@ class Menu {
 			query(
 				'/table/' + tables + params,
 				function(resp) {
-					new Table(resp);
-					if (!skip_refresh_option) {
-						this.refresh_option(resp);
-					}
+					this.table = new Table(resp, this);
 				}.bind(this));
 		}
-	}
-
-	refresh_option(resp) {
-		// Refresh pop-up
-		var options_section = d3.select('#option-section');
-		var table = options_section.one('table');
-
-		// THEAD
-        var head_tr = table.one('thead').selectAll('tr')
-            .data([['Field', 'Filter']])
-        head_tr = head_tr.enter().append('tr');
-		var th = head_tr.selectAll('th').data(noop)
-        th = th.enter()
-            .append('th')
-        ;
-		th.text(noop);
-
-		// TBODY
-        var tr = table.one('tbody')
-            .selectAll('tr')
-            .data(resp.columns[0])
-        ;
-        tr.exit().remove();
-        var all_tr = tr.enter().append('tr').merge(tr)
-        var td = all_tr.selectAll('td').data(function(d, i) {
-			return [
-				{'text': d.label, 'idx': i},
-				{'text': this.filters[d.name], 'field': d.name},
-		]}.bind(this));
-        td.exit().remove();
-        var enter_td = td.enter().append('td');
-        var all_td = enter_td.merge(td);
-		all_td.text((d) => d.text);
-		all_td.property('index', (d, i) => i)
-
-		// Make filter column editable
-		var filters = all_td.filter((datum, pos) => pos == 1);
-		filters.attr('contenteditable', 'true');
-        filters.on('input', throttle(this.update_filter, this));
-	}
-
-	update_filter(datum) {
-		var target = d3.select(d3.event.target);
-		var content = target.text();
-		this.filters[datum.field] = content;
-		this.refresh_table(true);
 	}
 
 	pop(datum) {
@@ -353,7 +453,7 @@ var display_typeahead = function(el, select_cb, data) {
             if (!popper.state.isDestroyed) {
                 destroy();
             }
-        }, 100);
+        }, 200);
     };
     el.on('blur', delayed_destroy);
     el.on('focusout', delayed_destroy);
@@ -371,6 +471,7 @@ var display_typeahead = function(el, select_cb, data) {
     // click event on row
     row.on('click', function() {
 		var txt = d3.select(this).text();
+		log(txt);
 		teardown(txt);
 	});
 
