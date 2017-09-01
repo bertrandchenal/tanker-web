@@ -2,6 +2,7 @@
 
 from  datetime import datetime, date
 import json
+import shlex
 import sys
 
 from bottle import (
@@ -121,19 +122,31 @@ def table(tables):
             'table': table,
             'colspan': 1,
         })
+    operators = ['>=', '<=', '=', '>', '<', '!=', 'like', 'ilike', 'in',
+                 'notin']
 
     fltr = []
+    args = []
     params = dict(request.params)
     names = set(f.name for f in view.fields)
     for k, v in params.items():
+        # TODO sanitize k
         if k not in names:
             continue
         if not v.strip():
             continue
-        # TODO sanitize, use {}
-        fltr.append('(ilike %s "%s%%")' % (k, v))
+        # TODO add special case if first char is '('
+        for op in operators:
+            if v.startswith(op):
+                fltr.append('(%s %s {})' % (op, k))
+                v = shlex.split(v[len(op):])
+                args.append(v)
+                break
+        else:
+            fltr.append('(ilike %s {})' % k)
+            args.append(v + '%')
 
-    rows = list(view.read(fltr, limit=1000))
+    rows = list(view.read(fltr, limit=1000, args=args))
     return {
         'columns': [field_cols],
         'rows': rows,

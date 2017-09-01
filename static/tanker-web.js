@@ -215,6 +215,15 @@ class HeaderMenu {
 				.attr('placeholder', field.label)
 				.property('value', field.value)
 			;
+            el.on('keydown', function() {
+                var code = d3.event.keyCode;
+                if (code == 13) {
+                    // 13 is enter
+		            this.save()
+		            d3.select('#modal-option-toggle').node().click();
+                }
+            }.bind(this))
+
 		} else if (field.type == 'select') {
 			var select = el.one('select')
 				.attr('id', field.id)
