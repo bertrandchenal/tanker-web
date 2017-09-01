@@ -364,6 +364,15 @@ var curry = function() {
     }
 }
 
+var get_node_geo = function (el) {
+    var body = d3.select('body').node();
+    var height = el.offsetHeight
+    for (var lx = 0, ly = 0;
+         el != null && el != body;
+         lx += (el.offsetLeft || el.clientLeft), ly += (el.offsetTop || el.clientTop),
+         el = (el.offsetParent || el.parentNode));
+    return {x: lx, y: ly, h: height};
+}
 
 var indexOf = function(arr, item) {
     return Array.prototype.indexOf.call(arr, item);
@@ -419,12 +428,15 @@ var typeahead = function(route, select_cb) {
 
 var display_typeahead = function(el, select_cb, data) {
     var el_node = el.node();
+    var el_geo = get_node_geo(el_node);
+    log(el_geo)
     var width = el_node.getBoundingClientRect().width;
     // Add div to body
     var div = d3.select('body').one('div#typeahead');
-    div
-        .attr('class', 'card shadowed')
-        .style('width', width + 'px')
+    div.attr('class', 'card shadowed')
+    div.style('width', width + 'px')
+        .style('left', el_geo.x + 'px')
+        .style('top', el_geo.y + +el_geo.h + 'px')
     ;
 
     // Add rows
@@ -436,24 +448,14 @@ var display_typeahead = function(el, select_cb, data) {
     ;
     // Set active class to first row
     row.classed('active', (d, i) => i == 0);
-
-    // Launch popper
-    var popper = new Popper(el_node, div.node(), {
-        placement: 'auto',
-    });
     var destroy = function() {
-        popper.destroy();
         div.remove();
     }
 
     // blur & focusout event on input
     var delayed_destroy = function() {
         // Delay destroy to let any click on row succeed
-        setTimeout(function() {
-            if (!popper.state.isDestroyed) {
-                destroy();
-            }
-        }, 200);
+        setTimeout(destroy, 200);
     };
     el.on('blur', delayed_destroy);
     el.on('focusout', delayed_destroy);
@@ -520,3 +522,4 @@ var main = function(e) {
 };
 
 d3.select(document).on('DOMContentLoaded', main);
+

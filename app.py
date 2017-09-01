@@ -6,17 +6,10 @@ import sys
 
 from bottle import (
     route, run, template, static_file, install, JSONPlugin, request)
-from jinja2 import Environment, FileSystemLoader
 from tanker import View, fetch, logger, Table
 from tanker import connect, create_tables, yaml_load, ctx, Table
 
 # logger.setLevel('DEBUG')
-
-
-jinja_env = Environment(loader=FileSystemLoader('static'))
-jinja_env.globals.update(zip=zip)
-def render(name, *args, **kwargs):
-    return jinja_env.get_template(name + '.html').render(*args, **kwargs)
 
 
 # Define Plugin
@@ -82,7 +75,7 @@ def compress(items):
 def table(tables):
     # Create auto view
     tables = tables.split('+')
-    tables = map(Table.get, tables)
+    tables = list(map(Table.get, tables))
     main = tables[0]
     fields = []
     simple_table = len(tables) == 1
