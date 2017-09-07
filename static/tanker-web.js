@@ -245,36 +245,26 @@ class Menu {
 
     constructor(selector) {
         this.el = d3.select(selector);
-		this.input_row = this.el.one('div#input-row');
-		this.input_row.attr('class', 'input-group fluid row');
-		this.selected_container = this.input_row.one('div#selected-container')
-			.attr('class', 'input-group fluid')
+		this.selector_container = this.el.one('div#selector-container')
+			.attr('class', 'section')
 		;
-		this.selector_container = this.input_row.one('span#selector-container')
-			.attr('class', 'input-group fluid')
+		this.selection_container = this.el.one('div#selected-container')
+			.attr('class', 'secion')
 		;
-		this.button_container = this.input_row.one('span#button-container')
-			.attr('class', 'input-group fluid')
-		;
-
 		var hash = window.location.hash;
-		this.selected = hash.length ? hash.slice(1).split('+') : [];
+		this.selection = hash.length ? hash.slice(1).split('+') : [];
+		this.selected = this.selection[0];
 		this.filters = {};
 		this.refresh();
 
         var cb = this.push.bind(this);
         this.input.on('input', throttle(curry(typeahead, this.route.bind(this), cb)))
 
-		this.button_container.one('button#save')
-			.text('Save')
-			.on('click', function() {
-				this.table.save();
-		}.bind(this))
     }
 
 	route(content) {
-		if (this.selected.length) {
-			var params = 'selected=' + encodeURIComponent(this.selected.join('+'));
+		if (this.selection.length) {
+			var params = 'selection=' + encodeURIComponent(this.selection.join('+'));
 			return '/menu/' + content + '?' + params;
 		}
 		return '/menu/' + content;
@@ -285,8 +275,8 @@ class Menu {
 		this.refresh_table();
 
 		// Refesh menu dom
-		var groups = this.selected_container.selectAll('div.button-group')
-			.data(this.selected)
+		var groups = this.selection_container.selectAll('div.button-group')
+			.data(this.selection)
 		groups.exit().remove();
 		groups = groups.enter().append('div').merge(groups)
 			.attr('class', 'button-group')
@@ -294,17 +284,20 @@ class Menu {
 
 		var buttons = groups.selectAll('button')
 			.data((d, i) => [
-				{'text': d, 'idx': i},
-				{'text': cross_icon, 'idx': i},
+				{'text': d, 'idx': i, 'action': 'select'},
+				{'text': cross_icon, 'idx': i, 'action': 'pop'},
 			]);
+
+		var self = this;
 		buttons.enter()
 			.append('button')
 			.merge(buttons)
 			.text((d) => d.text)
-			.filter((d, i) => i == 1)
-			.on('click', this.pop.bind(this))
+			.on('click', function(d) {
+				self[d.action].apply(self, [d.text])
+			})
 		;
-		
+
 		this.input = this.selector_container.one('input');
 		this.input
 			.attr('placeholder', 'Show Table')
@@ -313,31 +306,40 @@ class Menu {
 
 	refresh_table() {
 		var hash = window.location.hash;
-		var tables = this.selected.join('+');
+		var tables = this.selection.join('+');
 		if (tables != hash) {
 			window.location.hash = tables;
 		}
-		if (this.selected.length) {
+		if (this.selected) {
 			var params = Object.entries(this.filters).map(
 				([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
 			if (params.length) {
 				params = '?' + params.join('&');
 			}
 			query(
-				'/table/' + tables + params,
+				'/table/' + this.selected + params,
 				function(resp) {
 					this.table = new Table(resp, this);
 				}.bind(this));
 		}
 	}
 
+	select(datum) {
+		this.selected = datum;
+		this.refresh()
+	}
+
 	pop(datum) {
-		this.selected.splice(datum.idx, 1);
+		var spliced = this.selection.splice(datum.idx, 1);
+		if (spliced[0] == this.selected) {
+			this.selected = this.selection[0]? this.selection.length: null;
+		}
 		this.refresh();
 	}
 
     push(name) {
-		this.selected.push(name);
+		this.selection.push(name);
+		this.selected = name;
 		this.refresh();
     }
 
@@ -457,6 +459,7 @@ var display_typeahead = function(el, select_cb, data) {
     ;
     // Set active class to first row
     row.classed('active', (d, i) => i == 0);
+
     var destroy = function() {
         div.remove();
     }
