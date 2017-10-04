@@ -70,7 +70,6 @@ class Table {
 			})
 			dataset.push(row_values);
 		});
-		log(dataset);
 		rows.classed('edited', false);
 	}
 
@@ -91,7 +90,7 @@ class Table {
         var row = d3.select(tr);
         row.attr('class', 'active edited')
 
-		
+
         // Enable typeahead
         var table_name = this.el.data();
 		var th = this.el.selectAll('thead tr:nth-last-child(1) th')
@@ -171,7 +170,7 @@ class HeaderMenu {
 		}
 		main_menu.refresh_table();
 	}
-	
+
 	refresh() {
 		var main_menu = this.table.menu;
 		var form = this.content.one('form');
@@ -440,7 +439,6 @@ var typeahead = function(route, select_cb) {
 var display_typeahead = function(el, select_cb, data) {
     var el_node = el.node();
     var el_geo = get_node_geo(el_node);
-    log(el_geo)
     var width = el_node.getBoundingClientRect().width;
     // Add div to body
     var div = d3.select('body').one('div#typeahead');
@@ -485,7 +483,6 @@ var display_typeahead = function(el, select_cb, data) {
     // click event on row
     row.on('click', function() {
 		var txt = d3.select(this).text();
-		log(txt);
 		teardown(txt);
 	});
     // Unset kb-set active when using mouse
@@ -538,4 +535,3 @@ var main = function(e) {
 };
 
 d3.select(document).on('DOMContentLoaded', main);
-
