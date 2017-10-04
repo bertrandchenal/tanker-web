@@ -488,7 +488,11 @@ var display_typeahead = function(el, select_cb, data) {
 		log(txt);
 		teardown(txt);
 	});
-
+    // Unset kb-set active when using mouse
+    row.on('mouseover', function() {
+        div.select('.active').classed('active', false);
+        d3.select(this).classed('active', true);
+    });
     // keydown on input
     // see http://jsfiddle.net/qAHC2/292/
     el.on('keydown', function() {

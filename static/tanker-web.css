@@ -22,7 +22,7 @@ table thead tr:not(:first-child) th {
 	cursor: pointer;
 }
 
-#typeahead .row:hover,  #typeahead .row.active{
+#typeahead .row.active{
 	border-left: .25rem solid #1565c0;
 }
 
