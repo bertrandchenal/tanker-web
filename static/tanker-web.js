@@ -105,7 +105,7 @@ class Table {
 			return;
 		}
 		// Enable typeahead on fk
-		var route = (content) => `/search/${column.name}/`
+		var route = (content) => `/search/${table_name}/${column.name}/`
 			+ encodeURIComponent(content);
 		td.on('input', throttle(curry(typeahead, route, noop)));
     }
