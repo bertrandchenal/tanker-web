@@ -169,7 +169,7 @@ def search(table, field, prefix):
 def main():
     action = sys.argv[1]
     if action == 'run':
-        run(host='localhost', port=8080) #, server='cherrypy'
+        run(host='localhost', port=8080, server='bjoern')
     elif action == 'init':
         with connect(cfg):
             create_tables()
