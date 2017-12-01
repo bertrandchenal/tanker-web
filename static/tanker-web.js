@@ -274,28 +274,16 @@ class Menu {
 		this.refresh_table();
 
 		// Refesh menu dom
-		var groups = this.selection_container.selectAll('div.button-group')
+		var items = this.selection_container.selectAll('a.section')
 			.data(this.selection)
-		groups.exit().remove();
-		groups = groups.enter().append('div').merge(groups)
-			.attr('class', 'button-group')
+		items.exit().remove();
+		items = items.enter().append('a').merge(items)
+			.attr('class', 'section')
+			.text((d) => d)
 		;
-
-		var buttons = groups.selectAll('button')
-			.data((d, i) => [
-				{'text': d, 'idx': i, 'action': 'select'},
-				{'text': cross_icon, 'idx': i, 'action': 'pop'},
-			]);
-
-		var self = this;
-		buttons.enter()
-			.append('button')
-			.merge(buttons)
-			.text((d) => d.text)
-			.on('click', function(d) {
-				self[d.action].apply(self, [d.text])
-			})
-		;
+		items.on('click', function(d) {
+			self.select.apply(self, [d])
+		});
 
 		this.input = this.selector_container.one('input');
 		this.input

@@ -2,13 +2,12 @@
 
 from  datetime import datetime, date
 import json
+import argparse
 import shlex
-import sys
 
 from bottle import (
-    route, run, template, static_file, install, JSONPlugin, request)
-from tanker import View, fetch, logger, Table
-from tanker import connect, create_tables, yaml_load, ctx, Table
+    route, run, static_file, install, JSONPlugin, request)
+from tanker import View, connect, create_tables, ctx, Table
 
 # logger.setLevel('DEBUG')
 
@@ -150,7 +149,6 @@ def table(tables):
     return {
         'columns': [field_cols],
         'rows': rows,
-        'selector': '#main',
         'table_name': main.name,
     }
 
@@ -167,10 +165,17 @@ def search(table, field, prefix):
 
 
 def main():
-    action = sys.argv[1]
-    if action == 'run':
-        run(host='localhost', port=8080, server='bjoern')
-    elif action == 'init':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('action', help='run | init')
+    parser.add_argument('--server', '-s', help='Wsgi server to use',
+                        default='cherrypy')
+    parser.add_argument('--debug', '-d', action='store_true',
+                        help='Enable debug mode')
+    cli = parser.parse_args()
+
+    if cli.action == 'run':
+        run(host='localhost', port=8080, server=cli.server, debug=cli.debug)
+    elif cli.action == 'init':
         with connect(cfg):
             create_tables()
 
