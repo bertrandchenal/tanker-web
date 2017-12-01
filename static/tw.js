@@ -141,23 +141,16 @@ var query = function(url, callback) {
 
 
 var debounce = function(fun, self) {
-	var now = () => (new Date()).getTime()
-	var timeout = 200
-	var next_run =  now();
+	var timer =  null;
 	var refresh = function() {
 		var args = slice(arguments);
-		if (now() < next_run) {
-			// Wait for the next run
-			return;
-		}
-
+		clearTimeout(timer);
 		// Schedule a new run
 		var ev = d3.event
-		next_run = now() + timeout;
-		setTimeout(function() {
+		timer = setTimeout(function() {
 			d3.event = ev // Keep track of original event
 			fun.apply(self, args);
-		}, timeout)
+		}, 200)
 	}
 	return refresh;
 }
