@@ -129,7 +129,6 @@ def table(tables):
     params = dict(request.params)
     names = set(f.name for f in view.fields)
     for k, v in params.items():
-        # TODO sanitize k
         if k not in names:
             continue
         if not v.strip():
