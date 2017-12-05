@@ -41,3 +41,7 @@ table thead tr:not(:first-child) th {
 	cursor: pointer;
 	float: right;
 }
+
+.wait {
+    cursor: wait !important;
+}

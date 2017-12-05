@@ -38,7 +38,6 @@ var caption = function(root) {
     var save_btn = one(btn_group, 'button');
     save_btn.text('save');
     new Observable(function() {
-        console.log(ctx.edited())
         save_btn.attr('disabled', ctx.edited()? null : true)
     });
 
@@ -50,10 +49,9 @@ var caption = function(root) {
             return row;
         });
         var url = '/write/' + ctx.table_name()
-        console.log(url, data)
-        d3.request(url)
-            .header('Content-Type', 'application/json')
-            .post(JSON.stringify(data));
+        d3.select('html').classed('wait', true);
+        var cb = () => d3.select('html').classed('wait', false);
+        query(url, cb, data);
         ctx.edited(false);
     });
 }
@@ -321,15 +319,21 @@ var slice = function(arr, start, end) {
 var log = (...args) => console.log(args.map(JSON.stringify).join(' '));
 var noop = x => x;
 
-var query = function(url, callback) {
+var query = function(url, callback, post_data) {
     //console.log('QUERY', url);
-    var args = slice(arguments, 2);
-    d3.json(url, function(error, resp) {
+    var cb = function(error, resp) {
         if (error) {
             alert(error);
         }
-        callback(resp, args);
-    });
+        callback(resp);
+    };
+    if (post_data) {
+        d3.request(url)
+            .header('Content-Type', 'application/json')
+            .post(JSON.stringify(post_data), cb);
+    } else {
+        d3.json(url, cb);
+    }
 }
 
 

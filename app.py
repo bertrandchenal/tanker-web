@@ -7,7 +7,7 @@ import shlex
 
 from bottle import (
     route, run, static_file, install, JSONPlugin, request)
-from tanker import View, connect, create_tables, ctx, Table
+from tanker import View, connect, create_tables, ctx, Table, ReferenceSet
 
 # from tanker import logger
 # logger.setLevel('DEBUG')
@@ -27,7 +27,7 @@ class TankerPlugin:
 
 # Install plugins
 cfg = {
-    'db_uri': 'sqlite:///storm.db',
+    'db_uri': 'postgresql://storm:3mv@10.22.160.244/storm-bch',
     'schema': open('schema.yaml').read(),
 }
 install(TankerPlugin(cfg))
@@ -70,7 +70,6 @@ def compress(items):
             prev = it
             cnt = 1
     yield prev, cnt
-
 
 @route('/write/<tables>', method='POST')
 def write(tables):
@@ -170,9 +169,12 @@ def read(tables):
 
 @route('/search/<table>/<field>/<prefix:path>')
 def search(table, field, prefix):
-    fltr = '(like %s {prefix})' % field
-    rows = View(table, [field]).read(
-        fltr, limit=10, groupby=field,
+    ref = ReferenceSet(Table.get(table)).get_ref(field)
+    remote_col = ref.remote_table.get_column(ref.remote_field).name
+
+    fltr = '(like %s {prefix})' % remote_col
+    rows = View(ref.remote_table.name, [remote_col]).read(
+        fltr, limit=10, groupby=remote_col,
         args={'prefix': prefix + '%',})
     values = [x for x, in rows]
     return {
