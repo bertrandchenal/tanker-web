@@ -9,6 +9,7 @@ from bottle import (
     route, run, static_file, install, JSONPlugin, request)
 from tanker import View, connect, create_tables, ctx, Table
 
+# from tanker import logger
 # logger.setLevel('DEBUG')
 
 
@@ -71,8 +72,14 @@ def compress(items):
     yield prev, cnt
 
 
-@route('/table/<tables>')
-def table(tables):
+@route('/write/<tables>', method='POST')
+def write(tables):
+    data = request.json
+    main, fields = view_helper(tables)
+    view = View(main.name, fields)
+    view.write(data)
+
+def view_helper(tables):
     # Create auto view
     tables = tables.split('+')
     tables = list(map(Table.get, tables))
@@ -104,7 +111,12 @@ def table(tables):
                 add_fields(*('.'.join((col.name, i)) for i in ft.index))
             else:
                 add_fields(col.name)
+    return main, fields
 
+@route('/read/<tables>')
+def read(tables):
+    main, fields = view_helper(tables)
+    simple_table = True # TODO keep multi-table queries ?
     # Generate output
     view = View(main.name, fields)
     field_cols = []

@@ -3,79 +3,105 @@
 var table = function(root) {
     // Add table node
     var table_el = one(root, 'table');
-    // Display thead content
+    // Add context of observables to table node
+    var ctx = {
+        'resp': new Observable(),
+        'table_name': new Observable(),
+        'filters': new Observable({}),
+        'sort': new Observable(),
+        'edited': new Observable(false),
+    }
+    set_context(root, ctx);
+    // Display caption and thead
+    caption(table_el);
     thead(table_el);
+
+    // Auto-load first table
+    ctx.table_name('zone');
+}
+
+var caption = function(root) {
+    var ctx = get_context(root);
+    var menu_container = one(root, 'caption.container');
+    var menu_row = one(menu_container, 'div.row');
+
+    // Add main input
+    var input = one(menu_row, 'input.col-sm');
+    // Plug typeahead
+    var route = (content) => '/menu/' + content;
+    input.on('input', debounce(curry(typeahead, route, ctx.table_name)))
+    input.attr('placeholder', 'Select a table to query');
+
+    // Add Save button
+    var btn_group = one(menu_row, 'div.button-group');
+    btn_group.classed('col-sm-4', true);
+    var save_btn = one(btn_group, 'button');
+    save_btn.text('save');
+    new Observable(function() {
+        console.log(ctx.edited())
+        save_btn.attr('disabled', ctx.edited()? null : true)
+    });
+
+    save_btn.on('click', function() {
+        var data = root.selectAll('.edited').nodes().map(function(tr) {
+            var row = d3.select(tr).selectAll('td').nodes().map(function(td) {
+                return td.innerText;
+            });
+            return row;
+        });
+        var url = '/write/' + ctx.table_name()
+        console.log(url, data)
+        d3.request(url)
+            .header('Content-Type', 'application/json')
+            .post(JSON.stringify(data));
+        ctx.edited(false);
+    });
 }
 
 var thead = function(root) {
+    var ctx = get_context(root);
     // Add nodes
-    var menu_el = one(root, 'caption');
-    var input = one(menu_el, 'input');
     var thead_el = one(root, 'thead');
-
-    // Define some observables
-    var table_name = new Observable();
-    var filters = new Observable({});
-    var sort = new Observable();
-    var url = new Observable();
-    var resp = new Observable();
-
-    // Add context to table node
-    set_context(root, {
-        'resp': resp,
-        'table_name': table_name,
-        'filters': filters,
-        'sort': sort,
-    });
-
-    // Plug typeahead
-    var route = (content) => '/menu/' + content;
-    input.on('input', debounce(curry(typeahead, route, table_name)))
-    input.attr('placeholder', 'Select a table to query');
 
     // Reset observables when table_name is changed
     var reset = function() {
-        console.log(arguments);
-        filters({});
-        sort(null);
+        ctx.filters({});
+        ctx.sort(null);
+        ctx.edited(false);
     }
-    table_name.subscribe(reset);
-
+    ctx.table_name.subscribe(reset);
 
     // Plug data loading
     var debounced_query = debounce(query);
     var launch_query = function() {
-        if (!table_name()) {
+        if (!ctx.table_name()) {
             return;
         }
-        var url = '/table/' + table_name();
+        var url = '/read/' + ctx.table_name();
         var encode_param = ([k, v]) =>
             `${encodeURIComponent(k)}=${encodeURIComponent(v)}`;
-        var params = Object.entries(filters()).map(encode_param);
-        if (sort()) {
-            params.push(encode_param([':sort', sort()]));
+        var params = Object.entries(ctx.filters()).map(encode_param);
+        if (ctx.sort()) {
+            params.push(encode_param([':sort', ctx.sort()]));
         }
         if (params.length) {
             url = url + '?' + params.join('&');
         }
-        debounced_query(url, resp)
+        debounced_query(url, ctx.resp)
     }
     new Observable(launch_query);
 
-    // Add tbody (triggered if table_name change)
+    // Add tbody (triggered if resp change)
     var refresh = function() {
-        if (!resp()) { 
+        if (!ctx.resp()) {
             return;
         }
         // Add headers
-        headers(thead_el, resp);
+        headers(thead_el, ctx.resp);
         // Add tobdy
-        tbody(root, resp);
+        tbody(root, ctx.resp);
     };
     new Observable(refresh);
-
-    // Auto-load first table
-    table_name('zone');
 }
 
 var headers = function(root, resp) {
@@ -188,10 +214,13 @@ var body_cell = function(root, row) {
 var edit_cell = function(datum, idx, nodes) {
     var td = d3.select(this);
     var tr = d3.select(this.parentNode);
+    ctx = get_context(this);
 
     // Update active class
     d3.select('.active').classed('active', false);
     tr.attr('class', 'active edited')
+    ctx.edited(true);
+
     // Makes cells editable
     tr.selectAll('td').attr('contenteditable', 'true')
     // set focus
@@ -238,11 +267,12 @@ var one = function(el, tag) {
 var join = function(el, tag, data) {
     // select children
     var select = el.selectAll(tag).data(data);
+    // extract classes
+    var by_class = tag.split('.')
+    tag = by_class[0]
     // extract id
     var by_id = tag.split('#')
     tag = by_id[0]
-    var by_class = tag.split('.')
-    tag = by_class[0]
 
     // Remove old nods and add new
     var exit = select.exit()
