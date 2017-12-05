@@ -39,7 +39,7 @@ Observable.prototype.getset = function(value) {
         if (!this.equal(this.value, value)) {
             var old_value = this.value
             this.value = value;
-			this.trigger(old_value);
+            this.trigger(old_value);
         }
     } else {
         Observable.last_get(this);

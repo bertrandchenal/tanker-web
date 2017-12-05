@@ -25,7 +25,7 @@ var thead = function(root) {
         'resp': resp,
         'table_name': table_name,
         'filters': filters,
-		'sort': sort,
+        'sort': sort,
     });
 
     // Plug typeahead
@@ -33,37 +33,37 @@ var thead = function(root) {
     input.on('input', debounce(curry(typeahead, route, table_name)))
     input.attr('placeholder', 'Select a table to query');
 
-	// Reset observables when table_name is changed
-	var reset = function() {
-		console.log(arguments);
-		filters({});
-		sort(null);
-	}
-	table_name.subscribe(reset);
+    // Reset observables when table_name is changed
+    var reset = function() {
+        console.log(arguments);
+        filters({});
+        sort(null);
+    }
+    table_name.subscribe(reset);
 
 
     // Plug data loading
-	var debounced_query = debounce(query);
-	var launch_query = function() {
+    var debounced_query = debounce(query);
+    var launch_query = function() {
         if (!table_name()) {
             return;
         }
         var url = '/table/' + table_name();
-		var encode_param = ([k, v]) =>
-			`${encodeURIComponent(k)}=${encodeURIComponent(v)}`;
-		var params = Object.entries(filters()).map(encode_param);
-		if (sort()) {
-			params.push(encode_param([':sort', sort()]));
-		}
-		if (params.length) {
-			url = url + '?' + params.join('&');
-		}
-		debounced_query(url, resp)
+        var encode_param = ([k, v]) =>
+            `${encodeURIComponent(k)}=${encodeURIComponent(v)}`;
+        var params = Object.entries(filters()).map(encode_param);
+        if (sort()) {
+            params.push(encode_param([':sort', sort()]));
+        }
+        if (params.length) {
+            url = url + '?' + params.join('&');
+        }
+        debounced_query(url, resp)
     }
-	new Observable(launch_query);
+    new Observable(launch_query);
 
     // Add tbody (triggered if table_name change)
-	var refresh = function() {
+    var refresh = function() {
         if (!resp()) { 
             return;
         }
@@ -74,8 +74,8 @@ var thead = function(root) {
     };
     new Observable(refresh);
 
-	// Auto-load first table
-	table_name('zone');
+    // Auto-load first table
+    table_name('zone');
 }
 
 var headers = function(root, resp) {
@@ -94,13 +94,13 @@ var header_cell = function(root, data) {
 var header_menu = function(datum, idx) {
     var node = d3.event.target;
     var div = popup(node, 'div#header-menu');
-	var ctx = get_context(node);
-	var filters = ctx.filters();
-	var resp = ctx.resp();
+    var ctx = get_context(node);
+    var filters = ctx.filters();
+    var resp = ctx.resp();
     var child_cols = resp.columns[resp.columns.length - 1];
     var column = child_cols[idx];
 
-	// Add sections to card
+    // Add sections to card
     var title_row = one(div, 'div#popup-title')
     title_row.attr('class', 'section row');
     var body_row = one(div, 'form#popup-body')
@@ -108,51 +108,51 @@ var header_menu = function(datum, idx) {
     var footer_row = one(div, 'div#popup-footer')
     footer_row.attr('class', 'section row');
 
-	// Fill title section
+    // Fill title section
     var title = one(title_row, 'h3');
     title.text(datum.label);
 
-	// Fill body section
-	var filter_group = one(body_row, 'div#filter');
-	filter_group.attr('class', 'input-group vertical')
-	var filter_label = one(filter_group, 'label');
-	filter_label.text('Filter');
-	filter_label.attr('for', 'column-filter');
-	var filter_input = one(filter_group, 'input');
-	filter_input.attr('placeholder', 'Filter');
-	filter_input.attr('id', 'column-filter');
-	filter_input.property('value', filters[column.name] || '');
+    // Fill body section
+    var filter_group = one(body_row, 'div#filter');
+    filter_group.attr('class', 'input-group vertical')
+    var filter_label = one(filter_group, 'label');
+    filter_label.text('Filter');
+    filter_label.attr('for', 'column-filter');
+    var filter_input = one(filter_group, 'input');
+    filter_input.attr('placeholder', 'Filter');
+    filter_input.attr('id', 'column-filter');
+    filter_input.property('value', filters[column.name] || '');
 
-	var sort_group = one(body_row, 'div#sort');
-	sort_group.attr('class', 'input-group vertical')
-	var sort_label = one(sort_group, 'label');
-	sort_label.text('Sort');
-	var sort_btn_group = one(sort_group, 'div#sort-btn');
-	sort_btn_group.attr('class', 'button-group')
+    var sort_group = one(body_row, 'div#sort');
+    sort_group.attr('class', 'input-group vertical')
+    var sort_label = one(sort_group, 'label');
+    sort_label.text('Sort');
+    var sort_btn_group = one(sort_group, 'div#sort-btn');
+    sort_btn_group.attr('class', 'button-group')
 
-	var sort_btn_type = ['Ascending', 'Descending'];
-	var [sort_btn_all] = join(sort_btn_group, 'button', sort_btn_type);
-	sort_btn_all.text(noop);
-	sort_btn_all.attr('id', (d) => 'btn-' + d.toLowerCase());
+    var sort_btn_type = ['Ascending', 'Descending'];
+    var [sort_btn_all] = join(sort_btn_group, 'button', sort_btn_type);
+    sort_btn_all.text(noop);
+    sort_btn_all.attr('id', (d) => 'btn-' + d.toLowerCase());
 
 
-	// Fill footer section
+    // Fill footer section
     var ok_btn = one(footer_row, 'button#ok');
     ok_btn.text('Ok').attr('class', 'button primary');
     var cancel_btn = one(footer_row, 'button#cancel');
     cancel_btn.text('Cancel').attr('class', 'button');
 
-	// Plug events
-	sort_btn_all.on('click', function(d) {
+    // Plug events
+    sort_btn_all.on('click', function(d) {
         d3.event.preventDefault();
-		ctx.sort(column.name + (d == 'Ascending' ? ':asc' : ':desc'))
-	});
-	var ok_fun = function() {
-		// Update context
-		var value = filter_input.property('value')
-		// Update filter dict & trigger refresh
-		filters[column.name] = value;
-		ctx.filters.trigger();
+        ctx.sort(column.name + (d == 'Ascending' ? ':asc' : ':desc'))
+    });
+    var ok_fun = function() {
+        // Update context
+        var value = filter_input.property('value')
+        // Update filter dict & trigger refresh
+        filters[column.name] = value;
+        ctx.filters.trigger();
         div.remove();
     };
     ok_btn.on('click', ok_fun)
@@ -161,9 +161,9 @@ var header_menu = function(datum, idx) {
         if (code == 13) {
             // 13 is enter
             d3.event.preventDefault();
-			ok_fun();
-		}
-	});
+            ok_fun();
+        }
+    });
     cancel_btn.on('click', function() {
         div.remove();
     });
@@ -194,8 +194,8 @@ var edit_cell = function(datum, idx, nodes) {
     tr.attr('class', 'active edited')
     // Makes cells editable
     tr.selectAll('td').attr('contenteditable', 'true')
-	// set focus
-	td.node().focus()
+    // set focus
+    td.node().focus()
     // Get column definition
     var ctx = get_context(this);
     var table_name = ctx.table_name();
@@ -210,10 +210,10 @@ var edit_cell = function(datum, idx, nodes) {
         if (code == 13) {
             // 13 is enter
             d3.event.preventDefault();
-			var shifted = d3.event.shiftKey;
-			var tr_node = tr.node();
-			var next_tr = shifted ? tr_node.previousElementSibling
-				: tr_node.nextElementSibling
+            var shifted = d3.event.shiftKey;
+            var tr_node = tr.node();
+            var next_tr = shifted ? tr_node.previousElementSibling
+                : tr_node.nextElementSibling
             // Trigger click on the sibling td
             next_tr.children[idx].click()
         }
@@ -292,7 +292,7 @@ var log = (...args) => console.log(args.map(JSON.stringify).join(' '));
 var noop = x => x;
 
 var query = function(url, callback) {
-	//console.log('QUERY', url);
+    //console.log('QUERY', url);
     var args = slice(arguments, 2);
     d3.json(url, function(error, resp) {
         if (error) {
@@ -307,13 +307,13 @@ var debounce = function(fun, self) {
     var timer =  null;
     var refresh = function() {
         var args = slice(arguments);
-		var timeout = 100;
-		if (timer) {
-			clearTimeout(timer);
-		} else {
-			// First invocation, query instantly
-			timeout = 0
-		}
+        var timeout = 100;
+        if (timer) {
+            clearTimeout(timer);
+        } else {
+            // First invocation, query instantly
+            timeout = 0
+        }
         // Schedule a new run
         var ev = d3.event
         timer = setTimeout(function() {
