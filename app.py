@@ -128,6 +128,11 @@ def table(tables):
     args = []
     params = dict(request.params)
     names = set(f.name for f in view.fields)
+    sort = None
+    if ':sort' in params:
+        sort = params.pop(':sort')
+        sort = tuple(sort.split(':'))
+
     for k, v in params.items():
         if k not in names:
             continue
@@ -144,7 +149,7 @@ def table(tables):
             fltr.append('(ilike %s {})' % k)
             args.append(v + '%')
 
-    rows = list(view.read(fltr, limit=1000, args=args))
+    rows = list(view.read(fltr, args=args, limit=1000, order=sort))
     return {
         'columns': [field_cols],
         'rows': rows,

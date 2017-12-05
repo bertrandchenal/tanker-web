@@ -14,53 +14,68 @@ var thead = function(root) {
     var thead_el = one(root, 'thead');
 
     // Define some observables
-    var resp = new Observable();
+    var table_name = new Observable();
     var filters = new Observable({});
-    var table_name = new Observable('zone');
+    var sort = new Observable();
+    var url = new Observable();
+    var resp = new Observable();
+
+    // Add context to table node
+    set_context(root, {
+        'resp': resp,
+        'table_name': table_name,
+        'filters': filters,
+		'sort': sort,
+    });
 
     // Plug typeahead
     var route = (content) => '/menu/' + content;
     input.on('input', debounce(curry(typeahead, route, table_name)))
     input.attr('placeholder', 'Select a table to query');
 
-	// Reset filters when table is changed
-	table_name.subscribe(() => filters({}));
+	// Reset observables when table_name is changed
+	var reset = function() {
+		console.log(arguments);
+		filters({});
+		sort(null);
+	}
+	table_name.subscribe(reset);
+
 
     // Plug data loading
-    new Observable(function() {
+	var debounced_query = debounce(query);
+	var launch_query = function() {
         if (!table_name()) {
             return;
         }
         var url = '/table/' + table_name();
-		var params = Object.entries(filters()).map(
-			([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+		var encode_param = ([k, v]) =>
+			`${encodeURIComponent(k)}=${encodeURIComponent(v)}`;
+		var params = Object.entries(filters()).map(encode_param);
+		if (sort()) {
+			params.push(encode_param([':sort', sort()]));
+		}
 		if (params.length) {
 			url = url + '?' + params.join('&');
 		}
-		console.log(url);
-
-        // Launch query and assign result to resp
-        query(url, resp)
-    });
+		debounced_query(url, resp)
+    }
+	new Observable(launch_query);
 
     // Add tbody (triggered if table_name change)
-    new Observable(function() {
+	var refresh = function() {
         if (!resp()) { 
             return;
         }
-
-        // Update context on table node
-        set_context(root, {
-            'resp': resp,
-            'table_name': table_name,
-            'filters': filters,
-        });
-
         // Add headers
         headers(thead_el, resp);
         // Add tobdy
         tbody(root, resp);
-    });
+    };
+    new Observable(refresh);
+
+	// Auto-load first table
+	table_name('zone');
 }
 
 var headers = function(root, resp) {
@@ -112,13 +127,13 @@ var header_menu = function(datum, idx) {
 	sort_group.attr('class', 'input-group vertical')
 	var sort_label = one(sort_group, 'label');
 	sort_label.text('Sort');
-	var btn_group = one(sort_group, 'div#sort-btn');
-	btn_group.attr('class', 'button-group')
+	var sort_btn_group = one(sort_group, 'div#sort-btn');
+	sort_btn_group.attr('class', 'button-group')
 
-	var btn_type = ['Ascending', 'Descending'];
-	var [btn_all] = join(btn_group, 'button', btn_type);
-	btn_all.text(noop);
-	btn_all.attr('id', (d) => 'btn-' + d.toLowerCase());
+	var sort_btn_type = ['Ascending', 'Descending'];
+	var [sort_btn_all] = join(sort_btn_group, 'button', sort_btn_type);
+	sort_btn_all.text(noop);
+	sort_btn_all.attr('id', (d) => 'btn-' + d.toLowerCase());
 
 
 	// Fill footer section
@@ -128,9 +143,9 @@ var header_menu = function(datum, idx) {
     cancel_btn.text('Cancel').attr('class', 'button');
 
 	// Plug events
-	btn_all.on('click', function(d) {
+	sort_btn_all.on('click', function(d) {
         d3.event.preventDefault();
-		console.log(d);
+		ctx.sort(column.name + (d == 'Ascending' ? ':asc' : ':desc'))
 	});
 	var ok_fun = function() {
 		// Update context
@@ -139,7 +154,7 @@ var header_menu = function(datum, idx) {
 		filters[column.name] = value;
 		ctx.filters.trigger();
         div.remove();
-    }
+    };
     ok_btn.on('click', ok_fun)
     filter_input.on('keydown', function() {
         var code = d3.event.keyCode;
@@ -148,12 +163,10 @@ var header_menu = function(datum, idx) {
             d3.event.preventDefault();
 			ok_fun();
 		}
-	})
+	});
     cancel_btn.on('click', function() {
         div.remove();
-    })
-
-
+    });
 }
 
 var tbody = function(root, resp) {
@@ -279,6 +292,7 @@ var log = (...args) => console.log(args.map(JSON.stringify).join(' '));
 var noop = x => x;
 
 var query = function(url, callback) {
+	//console.log('QUERY', url);
     var args = slice(arguments, 2);
     d3.json(url, function(error, resp) {
         if (error) {
@@ -474,9 +488,7 @@ var printable = function(data) {
 
 var main = function() {
     var root = d3.select('body')
-    query('/table/plant', function(resp) {
-        table(root, resp.rows)
-    })
+    table(root);
 }
 
 

@@ -39,7 +39,7 @@ Observable.prototype.getset = function(value) {
         if (!this.equal(this.value, value)) {
             var old_value = this.value
             this.value = value;
-            this.trigger(this.value, old_value);
+			this.trigger(old_value);
         }
     } else {
         Observable.last_get(this);
@@ -139,62 +139,3 @@ Observable.subscribe = function(fn, obs) {
 
 // Global observable to collect which other observable is accessed
 Observable.last_get = new Observable();
-
-// helper to define auto-updating dom element
-// Ex: el('h1', {'text': my_observable})
-Observable.bind = function(selector, args) {
-    var el = $(selector);
-    new Observable(function() {
-        for (var key in args) {
-            var arg = args[key];
-            if (arg.subscribe && typeof arg.subscribe == 'function') {
-                // arg is an observable; get his value
-                arg = arg();
-            } else if (typeof arg == 'function') {
-                arg = arg.bind(el)
-            }
-            if (el[key]) {
-                el[key](arg)
-            } else {
-                el.attr(key, arg);
-            }
-        }
-    });
-    return el;
-};
-
-Observable.$ = function(selector) {
-    this.el = $(selector);
-    this.type = this.el.prop('type');
-};
-
-Observable.$.prototype.val = function(obs) {
-    if (this.type == 'checkbox') {
-        this.el.prop('checked', obs());
-        obs.subscribe(function() {
-            this.el.prop('checked', obs());
-        }.bind(this));
-        this.el.change(function() {
-            obs(this.el.prop('checked'));
-        }.bind(this));
-    } else if (this.type == 'radio') {
-        this.el.prop('checked', this.el.prop('value') == obs());
-        obs.subscribe(function() {
-            this.el.prop('checked', this.el.prop('value') == obs());
-        }.bind(this));
-        this.el.change(function() {
-            if (this.el.prop('checked')) {
-                obs(this.el.prop('value'));
-            }
-        }.bind(this));
-    } else {
-        this.el.val(obs());
-        obs.subscribe(function() {
-            this.el.val(obs());
-        }.bind(this));
-        this.el.on('change keyup', function() {
-            obs(this.el.val());
-        }.bind(this));
-
-    }
-};
