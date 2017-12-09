@@ -27,8 +27,8 @@ class TankerPlugin:
 
 # Install plugins
 cfg = {
-     #postgresql://storm:3mv@10.22.160.244/storm-bch
-    'db_uri': 'sqlite:///storm.db',
+     'db_uri': 'postgresql:///storm',
+    # 'db_uri': 'sqlite:///storm.db',
     'schema': open('schema.yaml').read(),
 }
 install(TankerPlugin(cfg))
@@ -52,7 +52,6 @@ def callback(path):
 @route('/menu/<prefix>')
 def menu(prefix):
     values = [t for t in sorted(ctx.registry) if t.startswith(prefix)]
-    print prefix, values
     return {
         'values': values[:10],
     }
@@ -173,7 +172,7 @@ def search(table, field, prefix):
     ref = ReferenceSet(Table.get(table)).get_ref(field)
     remote_col = ref.remote_table.get_column(ref.remote_field).name
 
-    fltr = '(like %s {prefix})' % remote_col
+    fltr = '(ilike %s {prefix})' % remote_col
     rows = View(ref.remote_table.name, [remote_col]).read(
         fltr, limit=10, groupby=remote_col,
         args={'prefix': prefix + '%',})

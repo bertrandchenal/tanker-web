@@ -16,8 +16,11 @@ var table = function(root) {
     caption(table_el);
     thead(table_el);
 
+    // Add table buttons
+    table_buttons(table_el)
+
     // Auto-load first table
-    ctx.table_name('zone');
+    ctx.table_name('commissioning');
 }
 
 var caption = function(root) {
@@ -31,29 +34,6 @@ var caption = function(root) {
     var route = (content) => '/menu/' + content;
     input.on('input', debounce(curry(typeahead, route, ctx.table_name)))
     input.attr('placeholder', 'Select a table to query');
-
-    // Add Save button
-    var btn_group = one(menu_row, 'div.button-group');
-    btn_group.classed('col-sm-4', true);
-    var save_btn = one(btn_group, 'button');
-    save_btn.text('save');
-    new Observable(function() {
-        save_btn.attr('disabled', ctx.edited()? null : true)
-    });
-
-    save_btn.on('click', function() {
-        var data = root.selectAll('.edited').nodes().map(function(tr) {
-            var row = d3.select(tr).selectAll('td').nodes().map(function(td) {
-                return td.innerText;
-            });
-            return row;
-        });
-        var url = '/write/' + ctx.table_name()
-        d3.select('html').classed('wait', true);
-        var cb = () => d3.select('html').classed('wait', false);
-        query(url, cb, data);
-        ctx.edited(false);
-    });
 }
 
 var thead = function(root) {
@@ -242,7 +222,9 @@ var edit_cell = function(datum, idx, nodes) {
             var next_tr = shifted ? tr_node.previousElementSibling
                 : tr_node.nextElementSibling
             // Trigger click on the sibling td
-            next_tr.children[idx].click()
+            if (next_tr) {
+                next_tr.children[idx].click()
+            }
         }
 
     });
@@ -254,6 +236,46 @@ var edit_cell = function(datum, idx, nodes) {
     var route = (content) => `/search/${table_name}/${column.name}/`
         + encodeURIComponent(content);
     td.on('input', debounce(curry(typeahead, route, noop)));
+
+}
+
+
+
+var table_buttons = function(root) {
+    var ctx = get_context(root);
+    var geo = get_node_geo(root.node());
+    var top = window.innerHeight - 50;
+
+    // Add div to body
+    var body = d3.select('body');
+    var div = one(body, 'div.table_button');
+    div.attr('class', 'card shadowed popup')
+    div.style('width', geo.w + 'px')
+        .style('left', geo.x + 'px')
+        .style('top', top  + 'px')
+    ;
+    // Add Save button
+    var btn_group = one(div, 'div.button-group');
+    btn_group.classed('col-sm-4', true);
+    var save_btn = one(btn_group, 'button');
+    save_btn.text('save');
+    new Observable(function() {
+        save_btn.attr('disabled', ctx.edited()? null : true)
+    });
+
+    save_btn.on('click', function() {
+        var data = root.selectAll('.edited').nodes().map(function(tr) {
+            var row = d3.select(tr).selectAll('td').nodes().map(function(td) {
+                return td.innerText;
+            });
+            return row;
+        });
+        var url = '/write/' + ctx.table_name()
+        d3.select('html').classed('wait', true);
+        var cb = () => d3.select('html').classed('wait', false);
+        query(url, cb, data);
+        ctx.edited(false);
+    });
 
 }
 
