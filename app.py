@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
-
 from  datetime import datetime, date
+import csv
+import io
 import json
 import argparse
 import shlex
@@ -27,8 +28,8 @@ class TankerPlugin:
 
 # Install plugins
 cfg = {
-     'db_uri': 'postgresql:///storm',
-    # 'db_uri': 'sqlite:///storm.db',
+     # 'db_uri': 'postgresql:///storm',
+    'db_uri': 'sqlite:///storm.db',
     'schema': open('schema.yaml').read(),
 }
 install(TankerPlugin(cfg))
@@ -113,28 +114,14 @@ def view_helper(tables):
     return main, fields
 
 @route('/read/<tables>')
-def read(tables):
+@route('/read/<tables>.<ext>')
+def read(tables, ext='json'):
     main, fields = view_helper(tables)
     simple_table = True # TODO keep multi-table queries ?
     # Generate output
     view = View(main.name, fields)
-    field_cols = []
-    for field in view.fields:
-        if field.ref:
-            table = field.ref.remote_table.name
-            label = field.col.name if simple_table else field.ref.remote_field
-        else:
-            table = main.name
-            label= field.col.name
-        field_cols.append({
-            'label': label,
-            'name': field.name,
-            'table': table,
-            'colspan': 1,
-        })
     operators = ['>=', '<=', '=', '>', '<', '!=', 'like', 'ilike', 'in',
                  'notin']
-
     fltr = []
     args = []
     params = dict(request.params)
@@ -161,10 +148,34 @@ def read(tables):
             args.append(v + '%')
 
     rows = list(view.read(fltr, args=args, limit=1000, order=sort))
+
+    if ext == 'csv':
+        buff = io.StringIO()
+        writer = csv.writer(buff)
+        writer.writerow([f.name for f in view.fields])
+        writer.writerows(rows)
+        buff.seek(0)
+        return buff.read()
+    else:
+        field_cols = []
+        for field in view.fields:
+            if field.ref:
+                table = field.ref.remote_table.name
+                label = field.col.name if simple_table \
+                        else field.ref.remote_field
+            else:
+                table = main.name
+                label= field.col.name
+            field_cols.append({
+                'label': label,
+                'name': field.name,
+                'table': table,
+                'colspan': 1,
+            })
+
     return {
         'columns': [field_cols],
         'rows': rows,
-        'table_name': main.name,
     }
 
 @route('/search/<table>/<field>/<prefix:path>')
@@ -180,7 +191,6 @@ def search(table, field, prefix):
     return {
         'values': values
     }
-
 
 def main():
     parser = argparse.ArgumentParser()

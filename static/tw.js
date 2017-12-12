@@ -20,8 +20,36 @@ var table = function(root) {
     table_buttons(table_el)
 
     // Auto-load first table
-    ctx.table_name('commissioning');
+    ctx.table_name('zone');
+
+    // // Add graph
+    // graph(root)
 }
+
+var graph = function(root) {
+    var div = one(root, 'div#vis');
+    var spec = {
+
+        "data": {"url": "/read/fuel.csv"},
+        "mark": "bar",
+        "encoding": {
+            "y": {
+                "field": "name",
+                "type": "ordinal"
+            },
+            "x": {
+                "field": "co2_rate",
+                "type": "quantitative"
+            }
+        }
+    }
+    var opt = {
+        mode: "vega-lite",
+        actions: {export: true, source: false, editor: false}
+    };
+    vegaEmbed("#vis", spec, opt);
+}
+
 
 var caption = function(root) {
     var ctx = get_context(root);
@@ -55,7 +83,7 @@ var thead = function(root) {
         if (!ctx.table_name()) {
             return;
         }
-        var url = '/read/' + ctx.table_name();
+        var url = '/read/' + ctx.table_name() + '.json';
         var encode_param = ([k, v]) =>
             `${encodeURIComponent(k)}=${encodeURIComponent(v)}`;
         var params = Object.entries(ctx.filters()).map(encode_param);
@@ -65,8 +93,8 @@ var thead = function(root) {
         if (params.length) {
             url = url + '?' + params.join('&');
         }
-        debounced_query(url, ctx.resp)
-    }
+        debounced_query(url, ctx.resp);
+    };
     new Observable(launch_query);
 
     // Add tbody (triggered if resp change)
@@ -240,20 +268,30 @@ var edit_cell = function(datum, idx, nodes) {
 }
 
 
-
 var table_buttons = function(root) {
     var ctx = get_context(root);
-    var geo = get_node_geo(root.node());
-    var top = window.innerHeight - 50;
 
     // Add div to body
     var body = d3.select('body');
     var div = one(body, 'div.table_button');
     div.attr('class', 'card shadowed popup')
-    div.style('width', geo.w + 'px')
-        .style('left', geo.x + 'px')
-        .style('top', top  + 'px')
-    ;
+
+    // Plug scrolling refresh
+    var refresh_div = function() {
+        var geo = get_node_geo(root.node());
+        var scroll_top = document.documentElement.scrollTop;
+        var viewport_bottom = scroll_top + window.innerHeight - 100;
+        var table_bottom = geo.y + geo.h + 10;
+        var bottom = Math.min(table_bottom, viewport_bottom);
+        div.transition()
+            .style('width', geo.w + 'px')
+            .style('left', geo.x + 'px')
+            .style('top', bottom + 'px');
+    }
+    ctx.resp.subscribe(refresh_div);
+    d3.select(window).on('scroll', debounce(refresh_div))
+
+
     // Add Save button
     var btn_group = one(div, 'div.button-group');
     btn_group.classed('col-sm-4', true);
@@ -264,7 +302,7 @@ var table_buttons = function(root) {
     });
 
     save_btn.on('click', function() {
-        var data = root.selectAll('.edited').nodes().map(function(tr) {
+        var post_data = root.selectAll('.edited').nodes().map(function(tr) {
             var row = d3.select(tr).selectAll('td').nodes().map(function(td) {
                 return td.innerText;
             });
@@ -272,8 +310,8 @@ var table_buttons = function(root) {
         });
         var url = '/write/' + ctx.table_name()
         d3.select('html').classed('wait', true);
-        var cb = () => d3.select('html').classed('wait', false);
-        query(url, cb, data);
+        var callback = () => d3.select('html').classed('wait', false);
+        query(url, callback, post_data);
         ctx.edited(false);
     });
 
@@ -347,7 +385,9 @@ var query = function(url, callback, post_data) {
         if (error) {
             alert(error);
         }
-        callback(resp);
+        if (callback) {
+            callback(resp);
+        }
     };
     if (post_data) {
         d3.request(url)
