@@ -6,8 +6,8 @@ import json
 import argparse
 import shlex
 
-from bottle import (
-    route, run, static_file, install, JSONPlugin, request)
+from bottle import (route, run, static_file, install, JSONPlugin, request,
+                    response, default_app)
 from tanker import View, connect, create_tables, ctx, Table, ReferenceSet
 
 # from tanker import logger
@@ -192,17 +192,24 @@ def search(table, field, prefix):
         'values': values
     }
 
+def log(*a, **kw):
+    content = [request.method, request.url, str(response.status_code)]
+    print(' '.join(content))
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('action', help='run | init')
     parser.add_argument('--server', '-s', help='Wsgi server to use',
-                        default='cherrypy')
+                        default='wsgiref')
     parser.add_argument('--debug', '-d', action='store_true',
                         help='Enable debug mode')
     cli = parser.parse_args()
 
+    app = default_app()
     if cli.action == 'run':
-        run(host='localhost', port=8080, server=cli.server, debug=cli.debug)
+        if cli.debug:
+            app.add_hook('after_request', log)
+        app.run(host='localhost', port=8080, server=cli.server, debug=cli.debug)
     elif cli.action == 'init':
         with connect(cfg):
             create_tables()

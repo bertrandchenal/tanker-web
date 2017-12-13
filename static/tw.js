@@ -1,67 +1,108 @@
 'use strict'
 
-var table = function(root) {
-    // Add table node
-    var table_el = one(root, 'table');
-    // Add context of observables to table node
+var root = function(body) {
+    var container = one(body, 'div.container');
+    var menu_row = one(container, 'div#menu-row.row');
+    var content_row = one(container, 'div#content-row.row');
+
+    // Add context of observables
     var ctx = {
         'resp': new Observable(),
         'table_name': new Observable(),
         'filters': new Observable({}),
         'sort': new Observable(),
         'edited': new Observable(false),
+        'mode': new Observable('table'),
     }
-    set_context(root, ctx);
-    // Display caption and thead
-    caption(table_el);
-    thead(table_el);
+    set_context(container, ctx);
+    menu(menu_row);
 
-    // Add table buttons
-    table_buttons(table_el)
+    // Show table or graph based on mode
+    table(content_row);
+    graph(content_row);
 
-    // Auto-load first table
-    ctx.table_name('zone');
-
-    // // Add graph
-    // graph(root)
+    // Add content add refresh it when mode change
+    refresh_content();
+    ctx.mode.subscribe(refresh_content);
 }
 
-var graph = function(root) {
-    var div = one(root, 'div#vis');
-    var spec = {
+var table = function(content_row) {
+    var ctx = get_context(content_row);
+    // Add table node
+    var col = one(content_row, 'div#table-col.col-sm-12')
+    new Observable(function() {
+        var val = ctx.mode();
+        col.style('display', val == 'table' ? '' : 'none');
+    });
 
-        "data": {"url": "/read/fuel.csv"},
-        "mark": "bar",
-        "encoding": {
-            "y": {
-                "field": "name",
-                "type": "ordinal"
+    var table_el = one(col, 'table');
+    // Add thead & table rows
+    thead(table_el);
+    // Add table buttons
+    table_menu(table_el)
+    // Auto-load first table
+    ctx.table_name('zone');
+}
+
+var graph = function(content_row) {
+    var ctx = get_context(content_row);
+    // Add vis div
+    var div = one(content_row, 'div#vis');
+    // Remove it if mode is changed
+    new Observable(function() {
+        var val = ctx.mode();
+        div.style('display', val == 'graph' ? '' : 'none')
+    });
+
+    var spec = {
+        'data': {
+            "values": [
+                {"a": "A","b": 28}, {"a": "B","b": 55}, {"a": "C","b": 43},
+                {"a": "D","b": 91}, {"a": "E","b": 81}, {"a": "F","b": 53},
+                {"a": "G","b": 19}, {"a": "H","b": 87}, {"a": "I","b": 52}
+            ]
+        },
+        'mark': 'bar',
+        'encoding': {
+            'x': {
+                'field': 'a',
+                'type': 'ordinal'
             },
-            "x": {
-                "field": "co2_rate",
-                "type": "quantitative"
+            'y': {
+                'field': 'b',
+                'type': 'quantitative'
             }
         }
     }
     var opt = {
-        mode: "vega-lite",
+        mode: 'vega-lite',
         actions: {export: true, source: false, editor: false}
     };
-    vegaEmbed("#vis", spec, opt);
+    vegaEmbed('#vis', spec, opt);
 }
 
 
-var caption = function(root) {
-    var ctx = get_context(root);
-    var menu_container = one(root, 'caption.container');
-    var menu_row = one(menu_container, 'div.row');
+var menu = function(menu_row) {
+    var ctx = get_context(menu_row);
+    var left_col = one(menu_row, 'div.col-sm-4.input-group.fluid.col-sm-offset-4');
+    // var right_col = one(menu_row, 'div.col-sm-3.input-group');
 
     // Add main input
-    var input = one(menu_row, 'input.col-sm');
+    var input = one(left_col, 'input.col-sm');
     // Plug typeahead
     var route = (content) => '/menu/' + content;
     input.on('input', debounce(curry(typeahead, route, ctx.table_name)))
     input.attr('placeholder', 'Select a table to query');
+
+    // Add buttons
+    var btn_group = one(left_col, 'div.button-group');
+
+    var save_btn = one(btn_group, 'button');
+    new Observable(function() {
+        var label = ctx.mode() == 'table' ? 'Graph': 'Table';
+        save_btn.text(label);
+    });
+    save_btn.on('click', () => ctx.mode(ctx.mode() == 'table' ? 'graph': 'table'))
 }
 
 var thead = function(root) {
@@ -96,22 +137,17 @@ var thead = function(root) {
         debounced_query(url, ctx.resp);
     };
     new Observable(launch_query);
-
-    // Add tbody (triggered if resp change)
-    var refresh = function() {
-        if (!ctx.resp()) {
-            return;
-        }
+    ctx.resp.subscribe(function () {
         // Add headers
-        headers(thead_el, ctx.resp);
+        headers(thead_el);
         // Add tobdy
-        tbody(root, ctx.resp);
-    };
-    new Observable(refresh);
+        tbody(root);
+    });
 }
 
-var headers = function(root, resp) {
-    var columns = resp().columns
+var headers = function(root) {
+    var ctx = get_context(root);
+    var columns = ctx.resp().columns
     var [all, enter] = join(root, 'tr', columns);
     header_cell(all, noop);
 }
@@ -201,8 +237,9 @@ var header_menu = function(datum, idx) {
     });
 }
 
-var tbody = function(root, resp) {
-    var rows = resp().rows;
+var tbody = function(root) {
+    var ctx = get_context(root);
+    var rows = ctx.resp().rows;
     var tbody = one(root, 'tbody');
     var [all, enter] = join(tbody, 'tr', rows);
     body_cell(all, noop);
@@ -268,13 +305,17 @@ var edit_cell = function(datum, idx, nodes) {
 }
 
 
-var table_buttons = function(root) {
+var table_menu = function(root) {
     var ctx = get_context(root);
-
     // Add div to body
     var body = d3.select('body');
-    var div = one(body, 'div.table_button');
+    var div = one(body, 'div#table_menu');
     div.attr('class', 'card shadowed popup')
+    // Hide div if mode change
+    new Observable(function() {
+        var val = ctx.mode();
+        div.style('display', val == 'table' ? '' : 'none')
+    });
 
     // Plug scrolling refresh
     var refresh_div = function() {
@@ -288,9 +329,9 @@ var table_buttons = function(root) {
             .style('left', geo.x + 'px')
             .style('top', bottom + 'px');
     }
-    ctx.resp.subscribe(refresh_div);
+    // Plug events
+    ctx.resp.once(() => setTimeout(refresh_div, 500));
     d3.select(window).on('scroll', debounce(refresh_div))
-
 
     // Add Save button
     var btn_group = one(div, 'div.button-group');
@@ -332,7 +373,7 @@ var join = function(el, tag, data) {
     var by_id = tag.split('#')
     tag = by_id[0]
 
-    // Remove old nods and add new
+    // Remove old nodes and add new
     var exit = select.exit()
     exit.remove();
     var enter = select.enter()
@@ -340,9 +381,10 @@ var join = function(el, tag, data) {
     // Set id or class
     if (by_id.length > 1) {
         enter.attr('id', by_id[1]);
-    } else if (by_class.length > 1) {
-        enter.attr('class', by_class[1])
     }
+    // Add classes
+    enter.attr('class', by_class.slice(1).join(' '))
+
     // Merge
     var all = enter.merge(select);
     return [all, enter, exit];
@@ -369,7 +411,7 @@ var get_context = function(node, value) {
         return get_context(node.parentNode)
     }
 
-    throw "Not context found!";
+    console.trace();
 }
 
 var slice = function(arr, start, end) {
@@ -583,8 +625,8 @@ var printable = function(data) {
 
 
 var main = function() {
-    var root = d3.select('body')
-    table(root);
+    var body = d3.select('body')
+    root(body);
 }
 
 
