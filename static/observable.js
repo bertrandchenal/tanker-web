@@ -24,6 +24,7 @@ var Observable = function(value) {
         this.value = value;
         var getset = this.getset.bind(this);
         getset.subscribe = Observable.subscribe.bind(this);
+        getset.once = Observable.once.bind(this);
         getset.equal = Observable.set_equal.bind(this);
         getset.trigger = Observable.prototype.trigger.bind(this);
         getset._this = this;
@@ -69,9 +70,24 @@ Observable.prototype.trigger = function(old_value) {
     // Loop on a clone, because a subscriber my interfere with
     // subscribers list (aka trigger_computed)
     var subs_clone = this.subscribers.slice();
+    var to_dispose = [];
     for (var pos in subs_clone) {
-        subs_clone[pos](this.value, old_value);
+        var auto_dispose = subs_clone[pos](this.value, old_value);
+        if (auto_dispose) {
+            to_dispose.push(subs_clone[pos]);
+        }
     }
+
+    for (var pos in to_dispose) {
+        var fn = to_dispose[pos];
+        // Dispose subscriber that asks for it
+        for (var pos in this.subscribers) {
+            if (this.subscribers[pos] === fn) {
+                this.subscribers.splice(pos, 1);
+            }
+        }
+    }
+
     this.trigger_runnning = false;
 };
 
@@ -113,6 +129,14 @@ Observable.prototype.trigger_computed = function() {
                                  to_subscribe[pos])
         );
     }
+};
+
+Observable.once = function(fn) {
+    var wrapper = function(new_value, old_value) {
+        fn(new_value, old_value);
+        return true; // force auto-disposal
+    }
+    return Observable.subscribe(wrapper.bind(this), this)
 };
 
 // The subscribe method allows to attach a callback function 'fn' that
