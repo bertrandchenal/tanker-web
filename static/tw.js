@@ -20,10 +20,6 @@ var root = function(body) {
     // Show table or graph based on mode
     table(content_row);
     graph(content_row);
-
-    // Add content add refresh it when mode change
-    refresh_content();
-    ctx.mode.subscribe(refresh_content);
 }
 
 var table = function(content_row) {
@@ -41,7 +37,7 @@ var table = function(content_row) {
     // Add table buttons
     table_menu(table_el)
     // Auto-load first table
-    ctx.table_name('zone');
+    ctx.table_name('prm_plant');
 }
 
 var graph = function(content_row) {
@@ -54,24 +50,52 @@ var graph = function(content_row) {
         div.style('display', val == 'graph' ? '' : 'none')
     });
 
+    ctx.resp.subscribe(curry(populate_graph, div));
+    ctx.mode.subscribe(curry(populate_graph, div));
+}
+
+var populate_graph = function(div) {
+    var ctx = get_context(div);
+    if (ctx.mode() != 'graph') {
+        // nothing to do
+        return;
+    }
+    // Extract column names
+    var cols = ctx.resp().columns;
+    cols = cols[cols.length - 1];
+    cols = cols.map((c) => c.label);
+
+    // Loop on rows to create records
+    var rows = ctx.resp().rows;
+    var values = rows.map(function(row) {
+        var zipped = d3.zip(cols, row);
+        var record = zipped.reduce(function(record, item) {
+            record[item[0]] = item[1];
+            return record;
+        }, {})
+        return record;
+    });
+
     var spec = {
         'data': {
-            "values": [
-                {"a": "A","b": 28}, {"a": "B","b": 55}, {"a": "C","b": 43},
-                {"a": "D","b": 91}, {"a": "E","b": 81}, {"a": "F","b": 53},
-                {"a": "G","b": 19}, {"a": "H","b": 87}, {"a": "I","b": 52}
-            ]
+            "values": values
         },
         'mark': 'bar',
         'encoding': {
             'x': {
-                'field': 'a',
-                'type': 'ordinal'
+                'field': 'value',
+                'type': 'quantitative',
+                'sort': false,
             },
             'y': {
-                'field': 'b',
-                'type': 'quantitative'
-            }
+                'field': 'plant',
+                'type': 'ordinal',
+                'sort': false,
+            },
+            'tooltip': {
+                'field': 'value',
+                'type': 'quantitative',
+            },
         }
     }
     var opt = {
@@ -79,6 +103,8 @@ var graph = function(content_row) {
         actions: {export: true, source: false, editor: false}
     };
     vegaEmbed('#vis', spec, opt);
+
+
 }
 
 
@@ -235,6 +261,13 @@ var header_menu = function(datum, idx) {
     cancel_btn.on('click', function() {
         div.remove();
     });
+
+    // Close div if if a click happens outside
+    setTimeout(function() {
+        var not_header = d3.select('div:not(#header-menu)');
+        not_header.on('click', () => div.remove());
+    }, 0);
+
 }
 
 var tbody = function(root) {
