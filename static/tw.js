@@ -123,12 +123,12 @@ var menu = function(menu_row) {
     // Add buttons
     var btn_group = one(left_col, 'div.button-group');
 
-    var save_btn = one(btn_group, 'button');
+    var mode_btn = one(btn_group, 'button');
     new Observable(function() {
         var label = ctx.mode() == 'table' ? 'Graph': 'Table';
-        save_btn.text(label);
+        mode_btn.text(label);
     });
-    save_btn.on('click', () => ctx.mode(ctx.mode() == 'table' ? 'graph': 'table'))
+    mode_btn.on('click', () => ctx.mode(ctx.mode() == 'table' ? 'graph': 'table'))
 }
 
 var thead = function(root) {
@@ -344,6 +344,7 @@ var table_menu = function(root) {
     var body = d3.select('body');
     var div = one(body, 'div#table_menu');
     div.attr('class', 'card shadowed popup')
+
     // Hide div if mode change
     new Observable(function() {
         var val = ctx.mode();
@@ -352,29 +353,29 @@ var table_menu = function(root) {
 
     // Plug scrolling refresh
     var refresh_div = function() {
-        var geo = get_node_geo(root.node());
+        var table_geo = get_node_geo(root.node());
+		var div_width = get_node_geo(div.node()).w;
         var scroll_top = document.documentElement.scrollTop;
         var viewport_bottom = scroll_top + window.innerHeight - 100;
-        var table_bottom = geo.y + geo.h + 10;
+        var table_bottom = table_geo.y + table_geo.h + 10;
         var bottom = Math.min(table_bottom, viewport_bottom);
+		console.log(table_geo.x + table_geo.w);
         div.transition()
-            .style('width', geo.w + 'px')
-            .style('left', geo.x + 'px')
+            .style('left', (table_geo.x + (table_geo.w/2) - (div_width/2)) + 'px')
             .style('top', bottom + 'px');
     }
     // Plug events
     ctx.resp.once(() => setTimeout(refresh_div, 500));
     d3.select(window).on('scroll', debounce(refresh_div))
 
-    // Add Save button
     var btn_group = one(div, 'div.button-group');
-    btn_group.classed('col-sm-4', true);
-    var save_btn = one(btn_group, 'button');
-    save_btn.text('save');
+
+    // Add Save button
+    var save_btn = one(btn_group, 'button#save');
+    save_btn.text('Save');
     new Observable(function() {
         save_btn.attr('disabled', ctx.edited()? null : true)
     });
-
     save_btn.on('click', function() {
         var post_data = root.selectAll('.edited').nodes().map(function(tr) {
             var row = d3.select(tr).selectAll('td').nodes().map(function(td) {
@@ -389,6 +390,16 @@ var table_menu = function(root) {
         ctx.edited(false);
     });
 
+	// Add new button
+    var new_btn = one(btn_group, 'button#new');
+    new_btn.text('New');
+    new_btn.on('click', function() {
+		window.scrollTo(0,document.body.scrollHeight);
+		var ctx = get_context(root);
+		var rows = ctx.resp().rows;
+		rows.push(['','','', '','']);
+		ctx.resp.trigger();
+	});
 }
 
 var one = function(el, tag) {
@@ -516,8 +527,7 @@ var popup = function(node, tag) {
     var body = d3.select('body');
     var div = one(body, tag);
     div.attr('class', 'card shadowed popup')
-    div.style('width', geo.w + 'px')
-        .style('left', geo.x + 'px')
+    div.style('left', geo.x + 'px')
         .style('top', geo.y + geo.h  + 'px')
     ;
 
@@ -625,11 +635,11 @@ var display_typeahead = function(el, select_cb, data) {
 var get_node_geo = function (el) {
     var body = d3.select('body').node();
     var height = el.offsetHeight
+    var width = el.getBoundingClientRect().width;
     for (var lx = 0, ly = 0;
          el != null && el != body;
          lx += (el.offsetLeft || el.clientLeft), ly += (el.offsetTop || el.clientTop),
          el = (el.offsetParent || el.parentNode));
-    var width = el.getBoundingClientRect().width;
     return {x: lx, y: ly, h: height, w: width};
 }
 
