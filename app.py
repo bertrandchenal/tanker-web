@@ -6,9 +6,10 @@ import json
 import argparse
 import shlex
 
-from bottle import (route, run, static_file, install, JSONPlugin, request,
+from bottle import (route, static_file, install, JSONPlugin, request,
                     response, default_app)
-from tanker import View, connect, create_tables, ctx, Table, ReferenceSet
+from tanker import (View, connect, create_tables, ctx, Table, ReferenceSet,
+                    logger)
 
 # from tanker import logger
 # logger.setLevel('DEBUG')
@@ -141,7 +142,7 @@ def read(tables, ext='json'):
             if v.startswith(op):
                 fltr.append('(%s %s {})' % (op, k))
                 v = shlex.split(v[len(op):])
-                args.append(v)
+                args.extend(v)
                 break
         else:
             fltr.append('(ilike %s {})' % k)
@@ -209,6 +210,8 @@ def main():
     if cli.action == 'run':
         if cli.debug:
             app.add_hook('after_request', log)
+            logger.setLevel('DEBUG')
+
         app.run(host='localhost', port=8080, server=cli.server, debug=cli.debug)
     elif cli.action == 'init':
         with connect(cfg):
