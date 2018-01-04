@@ -359,7 +359,6 @@ var table_menu = function(root) {
         var viewport_bottom = scroll_top + window.innerHeight - 100;
         var table_bottom = table_geo.y + table_geo.h + 10;
         var bottom = Math.min(table_bottom, viewport_bottom);
-		console.log(table_geo.x + table_geo.w);
         div.transition()
             .style('left', (table_geo.x + (table_geo.w/2) - (div_width/2)) + 'px')
             .style('top', bottom + 'px');
@@ -397,8 +396,12 @@ var table_menu = function(root) {
 		window.scrollTo(0,document.body.scrollHeight);
 		var ctx = get_context(root);
 		var rows = ctx.resp().rows;
-		rows.push(['','','', '','']);
+		var cols = ctx.resp().columns;
+		cols = cols[cols.length - 1];
+		var empty_row = cols.map((c) => '');
+		rows.push(empty_row);
 		ctx.resp.trigger();
+
 	});
 }
 
