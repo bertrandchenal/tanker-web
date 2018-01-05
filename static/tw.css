@@ -3,8 +3,16 @@
 	cursor: pointer;
 }
 
+td {
+	height: 1em;
+}
+
 tr.active td {
 	background-color: white;
+}
+
+tr.deleted {
+	display: none;
 }
 
 table thead tr:not(:first-child) th {

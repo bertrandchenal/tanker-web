@@ -1,5 +1,10 @@
 'use strict'
 
+const burger_icon = '\u2630';
+const check_icon = '\u2714';
+const cross_icon = '\u274C';
+const plus_icon = '\u2795';
+
 var root = function(body) {
     var container = one(body, 'div.container');
     var menu_row = one(container, 'div#menu-row.row');
@@ -342,36 +347,59 @@ var table_menu = function(root) {
     var ctx = get_context(root);
     // Add div to body
     var body = d3.select('body');
-    var div = one(body, 'div#table_menu');
-    div.attr('class', 'card shadowed popup')
+    var btn_group = one(body, 'div#table_menu');
+    btn_group.attr('class', 'popup shadowed')
+	// add collapsible div
+	var collapsible = one(btn_group, 'div');
+	collapsible.style('display', 'none');
 
-    // Hide div if mode change
+
+    // Hide btn_group if mode change
     new Observable(function() {
         var val = ctx.mode();
-        div.style('display', val == 'table' ? '' : 'none')
+        btn_group.style('display', val == 'table' ? '' : 'none')
     });
-
     // Plug scrolling refresh
-    var refresh_div = function() {
+    var refresh_btn_group = function() {
         var table_geo = get_node_geo(root.node());
-		var div_width = get_node_geo(div.node()).w;
+		var btn_group_geo = get_node_geo(btn_group.node());
         var scroll_top = document.documentElement.scrollTop;
-        var viewport_bottom = scroll_top + window.innerHeight - 100;
-        var table_bottom = table_geo.y + table_geo.h + 10;
+        var viewport_bottom = scroll_top + window.innerHeight - btn_group_geo.h - 5;
+        var table_bottom = table_geo.y + table_geo.h + 5;
         var bottom = Math.min(table_bottom, viewport_bottom);
-        div.transition()
-            .style('left', (table_geo.x + (table_geo.w/2) - (div_width/2)) + 'px')
+        btn_group.transition()
+            .style('right', table_geo.x + 5 + 'px') //+ (table_geo.w/2) - (btn_group_width/2))
             .style('top', bottom + 'px');
     }
-    // Plug events
-    ctx.resp.once(() => setTimeout(refresh_div, 500));
-    d3.select(window).on('scroll', debounce(refresh_div))
+    ctx.resp.once(() => setTimeout(refresh_btn_group, 500));
+    d3.select(window).on('scroll', debounce(refresh_btn_group))
 
-    var btn_group = one(div, 'div.button-group');
+	// Add delete button
+    var del_btn = one(collapsible, 'button#delete');
+    del_btn.html('Delete&nbsp;' + cross_icon);
+    del_btn.on('click', function() {
+		var rows = root.select('.active').classed('deleted', true);
+		ctx.resp.trigger();
+	});
+
+	// Add new button
+    var new_btn = one(collapsible, 'button#new');
+    new_btn.html('New&nbsp;' + plus_icon);
+    new_btn.on('click', function() {
+		window.scrollTo(0,document.body.scrollHeight);
+		var ctx = get_context(root);
+		var rows = ctx.resp().rows;
+		var cols = ctx.resp().columns;
+		cols = cols[cols.length - 1];
+		var empty_row = cols.map((c) => '');
+		rows.push(empty_row);
+		ctx.resp.trigger();
+		refresh_btn_group();
+	});
 
     // Add Save button
-    var save_btn = one(btn_group, 'button#save');
-    save_btn.text('Save');
+    var save_btn = one(collapsible, 'button#save');
+    save_btn.html('Save&nbsp;' + check_icon);
     new Observable(function() {
         save_btn.attr('disabled', ctx.edited()? null : true)
     });
@@ -389,20 +417,15 @@ var table_menu = function(root) {
         ctx.edited(false);
     });
 
-	// Add new button
-    var new_btn = one(btn_group, 'button#new');
-    new_btn.text('New');
-    new_btn.on('click', function() {
-		window.scrollTo(0,document.body.scrollHeight);
-		var ctx = get_context(root);
-		var rows = ctx.resp().rows;
-		var cols = ctx.resp().columns;
-		cols = cols[cols.length - 1];
-		var empty_row = cols.map((c) => '');
-		rows.push(empty_row);
-		ctx.resp.trigger();
-
+	// Add burger icon
+    var burger_btn = one(btn_group, 'button#burger');
+    burger_btn.text(burger_icon);
+	var collapsed = true;
+    burger_btn.on('click', function() {
+		collapsed = !collapsed;
+		collapsible.style('display', collapsed ? 'none': 'inline-block')
 	});
+
 }
 
 var one = function(el, tag) {
