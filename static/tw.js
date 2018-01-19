@@ -47,6 +47,8 @@ var table = function(content_row) {
 
 var graph = function(content_row) {
     var ctx = get_context(content_row);
+    // TODO Add vis menu
+    var div = one(content_row, 'div#vis-menu');
     // Add vis div
     var div = one(content_row, 'div#vis');
     // Remove it if mode is changed
@@ -303,7 +305,7 @@ var edit_cell = function(datum, idx, nodes) {
     ctx.edited(true);
 
     // Makes cells editable
-    tr.selectAll('td').attr('contenteditable', 'true')
+    tr.selectAll('td').attr('contenteditable', 'true');
     // set focus
     td.node().focus()
     // Get column definition
