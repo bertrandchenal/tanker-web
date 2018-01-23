@@ -18,6 +18,8 @@ var root = function(body) {
         'sort': new Observable(),
         'edited': new Observable(false),
         'mode': new Observable('table'),
+        'x_axis': new Observable(),
+        'y_axis': new Observable(),
     }
     set_context(container, ctx);
     menu(menu_row);
@@ -47,18 +49,43 @@ var table = function(content_row) {
 
 var graph = function(content_row) {
     var ctx = get_context(content_row);
-    // TODO Add vis menu
-    var div = one(content_row, 'div#vis-menu');
-    // Add vis div
-    var div = one(content_row, 'div#vis');
+
+    // Add graph menu
+    graph_menu(content_row);
+    ctx.resp.subscribe(curry(graph_menu, content_row));
+    ctx.mode.subscribe(curry(graph_menu, content_row));
+}
+
+
+var graph_menu = function(content_row) {
+    var ctx = get_context(content_row);
+    if (!ctx.resp()) {
+        return;
+    }
+
+    var menu_div = one(content_row, 'div#graph-menu');
+    var axes = ['x', 'y'];
+    var params = {};
+    var [selects] = join(menu_div, 'select', axes);
+    var cols = ctx.resp().columns;
+    cols = cols[cols.length - 1];
+    cols = cols.map((c) => c.label);
+    var [options] = join(selects, 'option', cols);
+    options.text(noop)
+
+    // Add graph div
+    var graph_div = one(content_row, 'div#graph');
+    selects.on('change', function (datum, idx) {
+        ctx[datum + '_axis'](this.value);
+        populate_graph(graph_div);
+    });
+
     // Remove it if mode is changed
     new Observable(function() {
         var val = ctx.mode();
-        div.style('display', val == 'graph' ? '' : 'none')
+        graph_div.style('display', val == 'graph' ? '' : 'none')
     });
 
-    ctx.resp.subscribe(curry(populate_graph, div));
-    ctx.mode.subscribe(curry(populate_graph, div));
 }
 
 var populate_graph = function(div) {
@@ -67,6 +94,10 @@ var populate_graph = function(div) {
         // nothing to do
         return;
     }
+    if (!ctx.x_axis() || ! ctx.y_axis()) {
+        return;
+    }
+
     // Extract column names
     var cols = ctx.resp().columns;
     cols = cols[cols.length - 1];
@@ -90,12 +121,12 @@ var populate_graph = function(div) {
         'mark': 'bar',
         'encoding': {
             'x': {
-                'field': 'value',
+                'field': ctx.x_axis(),
                 'type': 'quantitative',
                 'sort': false,
             },
             'y': {
-                'field': 'plant',
+                'field': ctx.y_axis(),
                 'type': 'ordinal',
                 'sort': false,
             },
@@ -109,7 +140,7 @@ var populate_graph = function(div) {
         mode: 'vega-lite',
         actions: {export: true, source: false, editor: false}
     };
-    vegaEmbed('#vis', spec, opt);
+    vegaEmbed('#graph', spec, opt);
 
 
 }
@@ -351,9 +382,9 @@ var table_menu = function(root) {
     var body = d3.select('body');
     var btn_group = one(body, 'div#table_menu');
     btn_group.attr('class', 'popup shadowed')
-	// add collapsible div
-	var collapsible = one(btn_group, 'div');
-	collapsible.style('display', 'none');
+    // add collapsible div
+    var collapsible = one(btn_group, 'div');
+    collapsible.style('display', 'none');
 
 
     // Hide btn_group if mode change
@@ -364,7 +395,7 @@ var table_menu = function(root) {
     // Plug scrolling refresh
     var refresh_btn_group = function() {
         var table_geo = get_node_geo(root.node());
-		var btn_group_geo = get_node_geo(btn_group.node());
+        var btn_group_geo = get_node_geo(btn_group.node());
         var scroll_top = document.documentElement.scrollTop;
         var viewport_bottom = scroll_top + window.innerHeight - btn_group_geo.h - 5;
         var table_bottom = table_geo.y + table_geo.h + 5;
@@ -376,28 +407,28 @@ var table_menu = function(root) {
     ctx.resp.once(() => setTimeout(refresh_btn_group, 500));
     d3.select(window).on('scroll', debounce(refresh_btn_group))
 
-	// Add delete button
+    // Add delete button
     var del_btn = one(collapsible, 'button#delete');
     del_btn.html('Delete&nbsp;' + cross_icon);
     del_btn.on('click', function() {
-		var rows = root.select('.active').classed('deleted', true);
-		ctx.resp.trigger();
-	});
+        var rows = root.select('.active').classed('deleted', true);
+        ctx.resp.trigger();
+    });
 
-	// Add new button
+    // Add new button
     var new_btn = one(collapsible, 'button#new');
     new_btn.html('New&nbsp;' + plus_icon);
     new_btn.on('click', function() {
-		window.scrollTo(0,document.body.scrollHeight);
-		var ctx = get_context(root);
-		var rows = ctx.resp().rows;
-		var cols = ctx.resp().columns;
-		cols = cols[cols.length - 1];
-		var empty_row = cols.map((c) => '');
-		rows.push(empty_row);
-		ctx.resp.trigger();
-		refresh_btn_group();
-	});
+        window.scrollTo(0,document.body.scrollHeight);
+        var ctx = get_context(root);
+        var rows = ctx.resp().rows;
+        var cols = ctx.resp().columns;
+        cols = cols[cols.length - 1];
+        var empty_row = cols.map((c) => '');
+        rows.push(empty_row);
+        ctx.resp.trigger();
+        refresh_btn_group();
+    });
 
     // Add Save button
     var save_btn = one(collapsible, 'button#save');
@@ -419,14 +450,14 @@ var table_menu = function(root) {
         ctx.edited(false);
     });
 
-	// Add burger icon
+    // Add burger icon
     var burger_btn = one(btn_group, 'button#burger');
     burger_btn.text(burger_icon);
-	var collapsed = true;
+    var collapsed = true;
     burger_btn.on('click', function() {
-		collapsed = !collapsed;
-		collapsible.style('display', collapsed ? 'none': 'inline-block')
-	});
+        collapsed = !collapsed;
+        collapsible.style('display', collapsed ? 'none': 'inline-block')
+    });
 
 }
 
@@ -455,7 +486,10 @@ var join = function(el, tag, data) {
         enter.attr('id', by_id[1]);
     }
     // Add classes
-    enter.attr('class', by_class.slice(1).join(' '))
+    var classes = by_class.slice(1).join(' ');
+    if (classes.length) {
+        enter.attr('class', classes)
+    }
 
     // Merge
     var all = enter.merge(select);

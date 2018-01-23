@@ -12,7 +12,7 @@ to filter and order content.  It also provides basic edition features
 like adding or deleting records, auto-completion of fields based on DB
 content.
 
-The main design decision was to use tables as only way to show
+The main design decision was to use tables as only/main way to show
 content, it fits better with the tanker philosophy and it's the most
 familliar way to edit records (thanks to spreasheet applications).
 
