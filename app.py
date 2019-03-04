@@ -9,7 +9,7 @@ import shlex
 from bottle import (route, static_file, install, JSONPlugin, request,
                     response, default_app)
 from tanker import (View, connect, create_tables, ctx, Table, ReferenceSet,
-                    logger)
+                    logger, Expression)
 
 # from tanker import logger
 # logger.setLevel('DEBUG')
@@ -29,7 +29,6 @@ class TankerPlugin:
 
 # Install plugins
 cfg = {
-     # 'db_uri': 'postgresql:///storm',
     'db_uri': 'sqlite:///storm.db',
     'schema': open('schema.yaml').read(),
 }
@@ -109,7 +108,7 @@ def view_helper(tables):
                     # Skip relation in multi-table query
                     continue
                 ft = col.get_foreign_table()
-                add_fields(*('.'.join((col.name, i)) for i in ft.index))
+                add_fields(*('.'.join((col.name, i)) for i in ft.key))
             else:
                 add_fields(col.name)
     return main, fields
@@ -181,7 +180,8 @@ def read(tables, ext='json'):
 
 @route('/search/<table>/<field>/<prefix:path>')
 def search(table, field, prefix):
-    ref = ReferenceSet(Table.get(table)).get_ref(field)
+    exp = Expression(Table.get(table))
+    ref = ReferenceSet(exp).get_ref(field)
     remote_col = ref.remote_table.get_column(ref.remote_field).name
 
     fltr = '(ilike %s {prefix})' % remote_col
