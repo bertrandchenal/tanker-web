@@ -1,27 +1,27 @@
-#main tr:hover:not(.active) td {
-	background-color: lightgrey;
-	cursor: pointer;
-}
+/* #main tr:hover:not(.active) td { */
+/* 	background-color: lightgrey; */
+/* 	cursor: pointer; */
+/* } */
 
-td {
-	height: 1em;
-}
+/* td { */
+/* 	height: 1em; */
+/* } */
 
-tr.active td {
-	background-color: white;
-}
+/* tr.active td { */
+/* 	background-color: white; */
+/* } */
 
-tr.deleted {
-	display: none;
-}
+/* tr.deleted { */
+/* 	display: none; */
+/* } */
 
-table thead tr:not(:first-child) th {
-	border-top: 1px solid lightgrey;
-}
+/* table thead tr:not(:first-child) th { */
+/* 	border-top: 1px solid lightgrey; */
+/* } */
 
-table {
-    margin-bottom: 20em;
-}
+/* table { */
+/*     margin-bottom: 20em; */
+/* } */
 
 .popup {
 	background: rgba(250, 250, 250, .95);
@@ -30,30 +30,30 @@ table {
     position: absolute;
 }
 
-#typeahead .row {
-	cursor: pointer;
-}
+/* #typeahead .row { */
+/* 	cursor: pointer; */
+/* } */
 
-#typeahead .row.active{
-	border-left: .25rem solid #1565c0;
-}
+/* #typeahead .row.active{ */
+/* 	border-left: .25rem solid #1565c0; */
+/* } */
 
 
-#modal-body {
-	max-height: 100vh;
-	/* max-width: 120vh; */
-}
+/* #modal-body { */
+/* 	max-height: 100vh; */
+/* 	/\* max-width: 120vh; *\/ */
+/* } */
 
-.header {
-	cursor: pointer;
-	padding-right: 2em;
-}
+/* .header { */
+/* 	cursor: pointer; */
+/* 	padding-right: 2em; */
+/* } */
 
-.header-icon {
-	cursor: pointer;
-	float: right;
-}
+/* .header-icon { */
+/* 	cursor: pointer; */
+/* 	float: right; */
+/* } */
 
-.wait {
-    cursor: wait !important;
-}
+/* .wait { */
+/*     cursor: wait !important; */
+/* } */
